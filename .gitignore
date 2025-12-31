@@ -6,7 +6,7 @@ dist/
 build/
 frontend/dist/
 frontend/build/
-backend/web/assets/
+backend/web/
 
 # Vite
 .vite/
