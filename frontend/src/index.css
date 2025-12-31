@@ -1,0 +1,69 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Ant Design 样式覆盖 */
+.ant-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.ant-card-head {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.ant-table {
+    background: white;
+}
+
+.ant-table-thead > tr > th {
+    background: #fafafa;
+    font-weight: 600;
+}
+
+.ant-statistic-title {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.ant-statistic-content {
+    color: #fff;
+}
+
+.ant-layout {
+    min-height: 100vh;
+}
+
+.ant-layout-header {
+    padding: 0;
+    line-height: 64px;
+}
+
+.ant-layout-sider {
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.ant-menu {
+    border-right: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .ant-layout-sider {
+        position: fixed;
+        height: 100vh;
+        left: 0;
+        z-index: 999;
+    }
+    
+    .ant-layout-content {
+        margin-left: 0 !important;
+    }
+}
+
