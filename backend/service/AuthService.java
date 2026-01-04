@@ -1,34 +1,25 @@
+package service;
+
+import dao.UserDao;
+import model.User;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 认证管理类
- * 处理用户登录、token生成和验证
+ * 认证业务逻辑层
+ * 处理用户登录、token生成和验证等业务逻辑
  */
-public class AuthManager {
-    private Map<String, User> users;  // 用户名 -> 用户信息
+public class AuthService {
+    private UserDao userDao;
     private Map<String, String> tokens;  // token -> 用户名
     private Map<String, Long> tokenExpiry;  // token -> 过期时间
     private static final long TOKEN_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24小时
     private static final String TOKEN_PREFIX = "token_";
 
-    public AuthManager() {
-        this.users = new HashMap<>();
+    public AuthService(UserDao userDao) {
+        this.userDao = userDao;
         this.tokens = new ConcurrentHashMap<>();
         this.tokenExpiry = new ConcurrentHashMap<>();
-        
-        // 初始化默认用户
-        initDefaultUsers();
-    }
-
-    /**
-     * 初始化默认用户
-     */
-    private void initDefaultUsers() {
-        // 默认管理员账号：admin/admin123
-        users.put("admin", new User("admin", "admin123", "admin"));
-        // 可以添加更多默认用户
-        users.put("user", new User("user", "user123", "user"));
     }
 
     /**
@@ -38,7 +29,7 @@ public class AuthManager {
      * @return token，如果登录失败返回null
      */
     public String login(String username, String password) {
-        User user = users.get(username);
+        User user = userDao.findUserByUsername(username);
         if (user != null && user.getPassword().equals(password)) {
             // 生成token
             String token = generateToken(username);
@@ -91,11 +82,8 @@ public class AuthManager {
      * 添加用户（用于后续扩展）
      */
     public boolean addUser(String username, String password, String role) {
-        if (users.containsKey(username)) {
-            return false;
-        }
-        users.put(username, new User(username, password, role));
-        return true;
+        User user = new User(username, password, role);
+        return userDao.addUser(user);
     }
 }
 

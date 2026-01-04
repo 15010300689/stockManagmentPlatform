@@ -29,18 +29,24 @@
 
 ```
 stockManagementPlatform/
-├── backend/                    # 后端工程目录
-│   ├── Product.java                # 商品实体类
-│   ├── User.java                   # 用户实体类
-│   ├── InventoryManager.java       # 库存管理核心类
-│   ├── AuthManager.java            # 认证管理类
-│   ├── ApiServer.java              # REST API服务器类
-│   ├── JsonUtil.java               # JSON工具类
-│   ├── Main.java                   # 主程序类（启动服务器）
-│   └── web/                        # 前端构建输出目录（静态文件）
-│       ├── index.html             # 构建后的HTML
-│       ├── assets/                # 构建后的JS/CSS文件
-│       └── ...
+backend/
+├── ApiServer.java          # HTTP服务器配置和路由
+├── config/
+│   └── Main.java           # 应用启动入口
+├── controller/             # 表现层（Controller层）
+│   ├── ProductController.java
+│   └── AuthController.java
+├── service/                # 业务逻辑层（Service层）
+│   ├── ProductService.java
+│   └── AuthService.java
+├── dao/                    # 数据访问层（DAO层）
+│   ├── ProductDao.java
+│   └── UserDao.java
+├── model/                  # 实体层
+│   ├── Product.java
+│   └── User.java
+└── util/                   # 工具层
+    └── JsonUtil.java
 ├── frontend/                   # 前端工程目录
 │   ├── package.json                # 前端依赖配置
 │   ├── vite.config.js              # Vite构建配置

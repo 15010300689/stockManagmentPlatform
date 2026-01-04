@@ -1,14 +1,18 @@
+package service;
+
+import dao.ProductDao;
+import model.Product;
 import java.util.*;
 
 /**
- * 库存管理类
- * 提供商品的增删改查、入库、出库等功能
+ * 商品业务逻辑层
+ * 处理商品相关的业务逻辑
  */
-public class InventoryManager {
-    private Map<String, Product> products;  // 使用Map存储商品，key为商品ID
+public class ProductService {
+    private ProductDao productDao;
 
-    public InventoryManager() {
-        this.products = new HashMap<>();
+    public ProductService(ProductDao productDao) {
+        this.productDao = productDao;
     }
 
     /**
@@ -17,11 +21,20 @@ public class InventoryManager {
      * @return 是否添加成功
      */
     public boolean addProduct(Product product) {
-        if (products.containsKey(product.getId())) {
-            return false;  // 商品ID已存在
+        // 业务逻辑：验证商品信息
+        if (product == null || product.getId() == null || product.getId().trim().isEmpty()) {
+            return false;
         }
-        products.put(product.getId(), product);
-        return true;
+        if (product.getName() == null || product.getName().trim().isEmpty()) {
+            return false;
+        }
+        if (product.getPrice() < 0) {
+            return false;
+        }
+        if (product.getQuantity() < 0) {
+            return false;
+        }
+        return productDao.addProduct(product);
     }
 
     /**
@@ -30,7 +43,7 @@ public class InventoryManager {
      * @return 是否删除成功
      */
     public boolean deleteProduct(String id) {
-        return products.remove(id) != null;
+        return productDao.deleteProduct(id);
     }
 
     /**
@@ -39,7 +52,7 @@ public class InventoryManager {
      * @return 商品对象，如果不存在则返回null
      */
     public Product findProductById(String id) {
-        return products.get(id);
+        return productDao.findProductById(id);
     }
 
     /**
@@ -48,13 +61,7 @@ public class InventoryManager {
      * @return 匹配的商品列表
      */
     public List<Product> findProductsByName(String name) {
-        List<Product> result = new ArrayList<>();
-        for (Product product : products.values()) {
-            if (product.getName().contains(name)) {
-                result.add(product);
-            }
-        }
-        return result;
+        return productDao.findProductsByName(name);
     }
 
     /**
@@ -63,13 +70,7 @@ public class InventoryManager {
      * @return 匹配的商品列表
      */
     public List<Product> findProductsByCategory(String category) {
-        List<Product> result = new ArrayList<>();
-        for (Product product : products.values()) {
-            if (product.getCategory().equals(category)) {
-                result.add(product);
-            }
-        }
-        return result;
+        return productDao.findProductsByCategory(category);
     }
 
     /**
@@ -77,7 +78,7 @@ public class InventoryManager {
      * @return 所有商品的列表
      */
     public List<Product> getAllProducts() {
-        return new ArrayList<>(products.values());
+        return productDao.getAllProducts();
     }
 
     /**
@@ -87,8 +88,11 @@ public class InventoryManager {
      * @return 是否成功
      */
     public boolean stockIn(String id, int amount) {
-        Product product = products.get(id);
-        if (product != null && amount > 0) {
+        if (amount <= 0) {
+            return false;
+        }
+        Product product = productDao.findProductById(id);
+        if (product != null) {
             product.addQuantity(amount);
             return true;
         }
@@ -102,7 +106,10 @@ public class InventoryManager {
      * @return 是否成功
      */
     public boolean stockOut(String id, int amount) {
-        Product product = products.get(id);
+        if (amount <= 0) {
+            return false;
+        }
+        Product product = productDao.findProductById(id);
         if (product != null) {
             return product.reduceQuantity(amount);
         }
@@ -118,7 +125,7 @@ public class InventoryManager {
      * @return 是否更新成功
      */
     public boolean updateProduct(String id, String name, double price, String category) {
-        Product product = products.get(id);
+        Product product = productDao.findProductById(id);
         if (product != null) {
             if (name != null && !name.trim().isEmpty()) {
                 product.setName(name);
@@ -140,7 +147,8 @@ public class InventoryManager {
      */
     public double getTotalInventoryValue() {
         double total = 0;
-        for (Product product : products.values()) {
+        List<Product> products = productDao.getAllProducts();
+        for (Product product : products) {
             total += product.getTotalValue();
         }
         return total;
@@ -151,7 +159,7 @@ public class InventoryManager {
      * @return 商品种类数
      */
     public int getProductCount() {
-        return products.size();
+        return productDao.getProductCount();
     }
 
     /**
@@ -159,11 +167,7 @@ public class InventoryManager {
      * @return 类别集合
      */
     public Set<String> getAllCategories() {
-        Set<String> categories = new HashSet<>();
-        for (Product product : products.values()) {
-            categories.add(product.getCategory());
-        }
-        return categories;
+        return productDao.getAllCategories();
     }
 
     /**
@@ -173,7 +177,8 @@ public class InventoryManager {
      */
     public List<Product> getLowStockProducts(int threshold) {
         List<Product> result = new ArrayList<>();
-        for (Product product : products.values()) {
+        List<Product> products = productDao.getAllProducts();
+        for (Product product : products) {
             if (product.getQuantity() < threshold) {
                 result.add(product);
             }

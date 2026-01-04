@@ -1,3 +1,5 @@
+package model;
+
 /**
  * 用户实体类
  */

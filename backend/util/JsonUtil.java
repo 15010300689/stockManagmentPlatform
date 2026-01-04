@@ -1,3 +1,8 @@
+package util;
+
+import model.Product;
+import controller.ProductController;
+import controller.AuthController;
 import java.util.*;
 
 /**
@@ -112,15 +117,15 @@ public class JsonUtil {
             return (T) parseProduct(json);
         }
         
-        if (clazz == ApiServer.ProductUpdateRequest.class) {
+        if (clazz == ProductController.ProductUpdateRequest.class) {
             return (T) parseProductUpdateRequest(json);
         }
         
-        if (clazz == ApiServer.StockOperation.class) {
+        if (clazz == ProductController.StockOperation.class) {
             return (T) parseStockOperation(json);
         }
         
-        if (clazz == ApiServer.LoginRequest.class) {
+        if (clazz == AuthController.LoginRequest.class) {
             return (T) parseLoginRequest(json);
         }
         
@@ -144,9 +149,9 @@ public class JsonUtil {
     /**
      * 解析ProductUpdateRequest对象
      */
-    private static ApiServer.ProductUpdateRequest parseProductUpdateRequest(String json) {
+    private static ProductController.ProductUpdateRequest parseProductUpdateRequest(String json) {
         Map<String, String> map = parseJsonObject(json);
-        ApiServer.ProductUpdateRequest req = new ApiServer.ProductUpdateRequest();
+        ProductController.ProductUpdateRequest req = new ProductController.ProductUpdateRequest();
         req.name = map.get("name");
         if (map.containsKey("price")) {
             req.price = Double.parseDouble(map.get("price"));
@@ -158,9 +163,9 @@ public class JsonUtil {
     /**
      * 解析StockOperation对象
      */
-    private static ApiServer.StockOperation parseStockOperation(String json) {
+    private static ProductController.StockOperation parseStockOperation(String json) {
         Map<String, String> map = parseJsonObject(json);
-        ApiServer.StockOperation op = new ApiServer.StockOperation();
+        ProductController.StockOperation op = new ProductController.StockOperation();
         op.id = map.get("id");
         op.amount = Integer.parseInt(map.getOrDefault("amount", "0"));
         return op;
@@ -169,9 +174,9 @@ public class JsonUtil {
     /**
      * 解析LoginRequest对象
      */
-    private static ApiServer.LoginRequest parseLoginRequest(String json) {
+    private static AuthController.LoginRequest parseLoginRequest(String json) {
         Map<String, String> map = parseJsonObject(json);
-        ApiServer.LoginRequest req = new ApiServer.LoginRequest();
+        AuthController.LoginRequest req = new AuthController.LoginRequest();
         req.username = map.get("username");
         req.password = map.get("password");
         return req;
