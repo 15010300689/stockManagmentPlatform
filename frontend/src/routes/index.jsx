@@ -1,5 +1,5 @@
 import React from 'react';
-import { Switch, Route, Redirect } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from '../pages/Login';
 import MainLayout from '../layouts/MainLayout';
 import PrivateRoute from './PrivateRoute';
@@ -8,43 +8,30 @@ import AccountManagement from '../pages/AccountManagement';
 import PermissionManagement from '../pages/PermissionManagement';
 import RoleManagement from '../pages/RoleManagement';
 import UserManagement from '../pages/UserManagement';
+import StoreManagement from '../pages/NStoreManagement';
+import PositionManagement from '../pages/PositionManagement';
+import UnitManagement from '../pages/UnitManagement';
+import CurrencyManagement from '../pages/CurrencyManagement';
+import TransportManagement from '../pages/TransportManagement';
+
+
 
 function AppRoutes() {
     return (
-        <Switch>
-            <Route path="/login" component={Login} />
-            <PrivateRoute path="/product">
-                <MainLayout>
-                    <ProductManagement />
-                </MainLayout>
-            </PrivateRoute>
-            <PrivateRoute path="/account">
-                <MainLayout>
-                    <AccountManagement />
-                </MainLayout>
-            </PrivateRoute>
-            <PrivateRoute path="/permission">
-                <MainLayout>
-                    <PermissionManagement />
-                </MainLayout>
-            </PrivateRoute>
-            <PrivateRoute path="/role">
-                <MainLayout>
-                    <RoleManagement />
-                </MainLayout>
-            </PrivateRoute>
-            <PrivateRoute path="/user">
-                <MainLayout>
-                    <UserManagement />
-                </MainLayout>
-            </PrivateRoute>
-            <PrivateRoute exact path="/">
-                <MainLayout>
-                    <ProductManagement />
-                </MainLayout>
-            </PrivateRoute>
-            <Redirect to="/" />
-        </Switch>
+        <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/product" element={<PrivateRoute><MainLayout><ProductManagement /></MainLayout></PrivateRoute>} />
+            <Route path="/account" element={<PrivateRoute><MainLayout><AccountManagement /></MainLayout></PrivateRoute>} />
+            <Route path="/permission" element={<PrivateRoute><MainLayout><PermissionManagement /></MainLayout></PrivateRoute>} />
+            <Route path="/role" element={<PrivateRoute><MainLayout><RoleManagement /></MainLayout></PrivateRoute>} />
+            <Route path="/user" element={<PrivateRoute><MainLayout><UserManagement /></MainLayout></PrivateRoute>} />
+            <Route path="/storeManagement" element={<PrivateRoute><MainLayout><StoreManagement /></MainLayout></PrivateRoute>} />
+            <Route path="/positionManagement" element={<PrivateRoute><MainLayout><PositionManagement /></MainLayout></PrivateRoute>} />
+            <Route path="/unitManagement" element={<PrivateRoute><MainLayout><UnitManagement /></MainLayout></PrivateRoute>} />
+            <Route path="/currencyManagement" element={<PrivateRoute><MainLayout><CurrencyManagement /></MainLayout></PrivateRoute>} />
+            <Route path="/transportManagement" element={<PrivateRoute><MainLayout><TransportManagement /></MainLayout></PrivateRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
     );
 }
 

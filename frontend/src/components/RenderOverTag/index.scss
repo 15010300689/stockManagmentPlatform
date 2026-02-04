@@ -1,0 +1,9 @@
+.ellipsis-container {
+    white-space: nowrap;
+    width: 300px;
+    max-width: 300px;
+    overflow: hidden;
+    cursor: pointer;
+    text-overflow: ellipsis;
+    
+}

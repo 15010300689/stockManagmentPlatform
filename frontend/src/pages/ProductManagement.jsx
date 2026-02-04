@@ -16,15 +16,23 @@ import {
     Popconfirm
 } from 'antd';
 import { authFetch } from '../auth';
-import StatisticsModal from '../components/StatisticsModal';
-import LowStockModal from '../components/LowStockModal';
+import StatisticsModal from '../components/ProductManagement/StatisticsModal';
+import LowStockModal     from '../components/ProductManagement/LowStockModal';
+import AddProductModal from '../components/ProductManagement/AddProductModal';
+import OutOrInStockModal from '../components/ProductManagement/OutOrInStockModal';
+import {
+    mockProducts,
+    mockStatics,
+    mockGetProductsById
+} from '../mock/productManagement';
+
 
 const API_BASE = '/api';
 
 function ProductManagement() {
-    const [products, setProducts] = useState([]);
+    const [products, setProducts] = useState(mockProducts);
     const [loading, setLoading] = useState(false);
-    const [stats, setStats] = useState({ productCount: 0, totalValue: 0, categories: [] });
+    const [stats, setStats] = useState(mockStatics || { productCount: 0, totalValue: 0, categories: [] });
     const [searchKeyword, setSearchKeyword] = useState('');
 
     // 模态框状态
@@ -44,8 +52,8 @@ function ProductManagement() {
 
     // 组件挂载时加载数据
     useEffect(() => {
-        loadProducts();
-        loadStatistics();
+        // loadProducts();
+        // loadStatistics();
     }, []);
 
     // 加载商品列表
@@ -78,8 +86,9 @@ function ProductManagement() {
 
     // 打开添加商品模态框
     const openAddModal = () => {
+        console.log('openAddModal');
         setCurrentProductId(null);
-        productForm.resetFields();
+        // productForm.resetFields();
         setProductModalVisible(true);
     };
 
@@ -106,49 +115,6 @@ function ProductManagement() {
         }
     };
 
-    // 提交商品表单
-    const handleProductSubmit = async (values) => {
-        try {
-            if (currentProductId) {
-                // 更新商品
-                const response = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(currentProductId)}`, {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        name: values.name,
-                        price: values.price,
-                        category: values.category
-                    })
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    message.success('商品更新成功');
-                    setProductModalVisible(false);
-                    loadProducts();
-                    loadStatistics();
-                } else {
-                    message.error(result.message || '更新失败');
-                }
-            } else {
-                // 添加商品
-                const response = await authFetch(`${API_BASE}/products`, {
-                    method: 'POST',
-                    body: JSON.stringify(values)
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    message.success('商品添加成功');
-                    setProductModalVisible(false);
-                    loadProducts();
-                    loadStatistics();
-                } else {
-                    message.error(result.message || '添加失败');
-                }
-            }
-        } catch (error) {
-            message.error('操作失败: ' + error.message);
-        }
-    };
-
     // 删除商品
     const handleDelete = async (productId) => {
         try {
@@ -171,12 +137,13 @@ function ProductManagement() {
     // 打开入库/出库模态框
     const openStockModal = async (productId, type) => {
         try {
-            const response = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(productId)}`);
-            if (!response.ok) {
-                message.error('获取商品信息失败');
-                return;
-            }
-            const product = await response.json();
+            // const response = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(productId)}`);
+            // if (!response.ok) {
+            //     message.error('获取商品信息失败');
+            //     return;
+            // }
+            // const product = await response.json();
+            const product = mockGetProductsById(productId); // 使用mock数据
             setCurrentProductId(productId);
             setCurrentStockType(type);
             setCurrentProduct(product);
@@ -223,6 +190,7 @@ function ProductManagement() {
             title: '商品ID',
             dataIndex: 'id',
             key: 'id',
+            align: 'center',
             width: 120,
         },
         {
@@ -230,12 +198,14 @@ function ProductManagement() {
             dataIndex: 'name',
             key: 'name',
             width: 200,
+            align: 'center',
         },
         {
             title: '类别',
             dataIndex: 'category',
             key: 'category',
             width: 150,
+            align: 'center',
             render: (category) => <Tag color="blue">{category}</Tag>,
         },
         {
@@ -243,6 +213,7 @@ function ProductManagement() {
             dataIndex: 'price',
             key: 'price',
             width: 120,
+            align: 'center',
             render: (price) => `¥${price.toFixed(2)}`,
         },
         {
@@ -250,6 +221,7 @@ function ProductManagement() {
             dataIndex: 'quantity',
             key: 'quantity',
             width: 100,
+            align: 'center',
             render: (quantity) => <span style={{ fontWeight: 'bold' }}>{quantity}</span>,
         },
         {
@@ -257,12 +229,14 @@ function ProductManagement() {
             dataIndex: 'totalValue',
             key: 'totalValue',
             width: 120,
+            align: 'center',
             render: (value) => `¥${value.toFixed(2)}`,
         },
         {
             title: '操作',
             key: 'action',
             width: 280,
+            align: 'center',
             render: (_, record) => (
                 <Space size="small">
                     <Button type="link" size="small" onClick={() => openEditModal(record.id)}>
@@ -302,13 +276,13 @@ function ProductManagement() {
     return (
         <div>
             {/* 头部统计卡片 */}
-            <Card style={{ marginBottom: 24, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <Card style={{ marginBottom: 24, background: '#13c2c2' }}>
                 <Row gutter={16}>
                     <Col span={12}>
                         <Statistic
                             title="商品总数"
                             value={stats.productCount}
-                            valueStyle={{ color: '#fff' }}
+                            style={{ color: '#fff' }}
                             prefix={<span style={{ fontSize: 24 }}>📦</span>}
                         />
                     </Col>
@@ -318,7 +292,7 @@ function ProductManagement() {
                             value={stats.totalValue}
                             precision={2}
                             prefix={<span style={{ fontSize: 24 }}>💰</span>}
-                            valueStyle={{ color: '#fff' }}
+                            style={{ color: '#fff' }}
                         />
                     </Col>
                 </Row>
@@ -368,152 +342,32 @@ function ProductManagement() {
                     }}
                 />
             </Card>
-
+            
             {/* 添加/编辑商品模态框 */}
-            <Modal
-                title={currentProductId ? '编辑商品' : '添加商品'}
+            <AddProductModal
+                currentProductId={currentProductId}
                 visible={productModalVisible}
-                onCancel={() => {
-                    setProductModalVisible(false);
-                    productForm.resetFields();
-                }}
-                footer={null}
-                width={600}
-            >
-                <Form
-                    form={productForm}
-                    layout="vertical"
-                    onFinish={handleProductSubmit}
-                >
-                    <Form.Item
-                        label="商品ID"
-                        name="id"
-                        rules={[{ required: true, message: '请输入商品ID' }]}
-                    >
-                        <Input disabled={!!currentProductId} placeholder="请输入商品ID" />
-                    </Form.Item>
-                    <Form.Item
-                        label="商品名称"
-                        name="name"
-                        rules={[{ required: true, message: '请输入商品名称' }]}
-                    >
-                        <Input placeholder="请输入商品名称" />
-                    </Form.Item>
-                    <Form.Item
-                        label="类别"
-                        name="category"
-                        rules={[{ required: true, message: '请输入类别' }]}
-                    >
-                        <Input placeholder="请输入类别" />
-                    </Form.Item>
-                    <Form.Item
-                        label="价格 (¥)"
-                        name="price"
-                        rules={[{ required: true, message: '请输入价格' }]}
-                    >
-                        <InputNumber
-                            style={{ width: '100%' }}
-                            min={0}
-                            step={0.01}
-                            precision={2}
-                            placeholder="请输入价格"
-                        />
-                    </Form.Item>
-                    {!currentProductId && (
-                        <Form.Item
-                            label="数量"
-                            name="quantity"
-                            rules={[{ required: true, message: '请输入数量' }]}
-                        >
-                            <InputNumber
-                                style={{ width: '100%' }}
-                                min={0}
-                                placeholder="请输入数量"
-                            />
-                        </Form.Item>
-                    )}
-                    <Form.Item>
-                        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                            <Button onClick={() => {
-                                setProductModalVisible(false);
-                                productForm.resetFields();
-                            }}>
-                                取消
-                            </Button>
-                            <Button type="primary" htmlType="submit">
-                                保存
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
-            </Modal>
+                onClose={
+                    () => {
+                        setProductModalVisible(false);
+                        productForm.resetFields();
+                    }
+                }
+            ></AddProductModal>
 
             {/* 入库/出库模态框 */}
-            <Modal
-                title={currentStockType === 'in' ? '商品入库' : '商品出库'}
-                visible={stockModalVisible}
-                onCancel={() => {
+            <OutOrInStockModal
+                stockModalVisible={stockModalVisible}
+                currentStockType={currentStockType}
+                currentProduct={currentProduct}
+                onClose={() => {
                     setStockModalVisible(false);
-                    stockForm.resetFields();
                 }}
-                footer={null}
-                width={500}
-            >
-                {currentProduct && (
-                    <div style={{ marginBottom: 24, padding: 16, background: '#f5f5f5', borderRadius: 4 }}>
-                        <div><strong>商品ID:</strong> {currentProduct.id}</div>
-                        <div><strong>商品名称:</strong> {currentProduct.name}</div>
-                        <div><strong>当前库存:</strong> {currentProduct.quantity}</div>
-                        <div><strong>价格:</strong> ¥{currentProduct.price.toFixed(2)}</div>
-                    </div>
-                )}
-                <Form
-                    form={stockForm}
-                    layout="vertical"
-                    onFinish={handleStockSubmit}
-                >
-                    <Form.Item
-                        label={currentStockType === 'in' ? '入库数量' : '出库数量'}
-                        name="amount"
-                        rules={[
-                            { required: true, message: `请输入${currentStockType === 'in' ? '入库' : '出库'}数量` },
-                            {
-                                type: 'number',
-                                min: 1,
-                                message: '数量必须大于0'
-                            },
-                            currentStockType === 'out' && currentProduct ? {
-                                validator: (_, value) => {
-                                    if (value > currentProduct.quantity) {
-                                        return Promise.reject(new Error('出库数量不能超过当前库存'));
-                                    }
-                                    return Promise.resolve();
-                                }
-                            } : {}
-                        ]}
-                    >
-                        <InputNumber
-                            style={{ width: '100%' }}
-                            min={1}
-                            max={currentStockType === 'out' && currentProduct ? currentProduct.quantity : undefined}
-                            placeholder={`请输入${currentStockType === 'in' ? '入库' : '出库'}数量`}
-                        />
-                    </Form.Item>
-                    <Form.Item>
-                        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                            <Button onClick={() => {
-                                setStockModalVisible(false);
-                                stockForm.resetFields();
-                            }}>
-                                取消
-                            </Button>
-                            <Button type="primary" htmlType="submit">
-                                确认
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
-            </Modal>
+                onSuccess={() => {
+                    loadProducts();
+                    loadStatistics();
+                }}
+            ></OutOrInStockModal>
 
             {/* 统计信息模态框 */}
             <StatisticsModal

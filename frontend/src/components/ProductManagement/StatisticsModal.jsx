@@ -5,7 +5,7 @@ function StatisticsModal({ visible, onClose, stats }) {
     return (
         <Modal
             title="📊 库存统计"
-            visible={visible}
+            open={visible}
             onCancel={onClose}
             footer={[
                 <Button key="close" onClick={onClose}>

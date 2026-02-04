@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { saveAuth } from '../auth';
 
 const API_BASE = '/api';
@@ -8,7 +8,7 @@ const API_BASE = '/api';
 function Login() {
     const [loading, setLoading] = useState(false);
     const [form] = Form.useForm();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const handleSubmit = async (values) => {
         setLoading(true);
@@ -27,10 +27,10 @@ function Login() {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                saveAuth(data.token, data.username);
+                saveAuth(data.token, data.username, data.roles);
                 message.success('登录成功');
                 const { from } = history.location.state || { from: { pathname: '/' } };
-                history.push(from);
+                navigate(from);
             } else {
                 message.error(data.message || '登录失败，请检查用户名和密码');
             }
@@ -39,6 +39,9 @@ function Login() {
             message.error('登录失败: ' + error.message);
         } finally {
             setLoading(false);
+
+            const { from } = history.location.state || { from: { pathname: '/' } };
+            navigate(from);
         }
     };
 
@@ -48,7 +51,7 @@ function Login() {
             justifyContent: 'center',
             alignItems: 'center',
             minHeight: '100vh',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            background: '#13c2c2'
         }}>
             <Card
                 title={

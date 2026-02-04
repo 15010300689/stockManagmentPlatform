@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Table, InputNumber, Space, Tag, message } from 'antd';
-import { authFetch } from '../auth';
+import { authFetch } from '../../auth';
+
+import { mockLowStockProducts } from '../../mock/productManagement';
 
 const API_BASE = '/api';
 
 function LowStockModal({ visible, onClose }) {
     const [threshold, setThreshold] = useState(10);
-    const [products, setProducts] = useState([]);
+    const [products, setProducts] = useState(mockLowStockProducts || []);
     const [loading, setLoading] = useState(false);
 
     const checkLowStock = async () => {
@@ -22,11 +24,11 @@ function LowStockModal({ visible, onClose }) {
         }
     };
 
-    useEffect(() => {
-        if (visible) {
-            checkLowStock();
-        }
-    }, [visible]);
+    // useEffect(() => {
+    //     if (visible) {
+    //         checkLowStock();
+    //     }
+    // }, [visible]);
 
     const columns = [
         {
@@ -62,7 +64,7 @@ function LowStockModal({ visible, onClose }) {
     return (
         <Modal
             title="⚠️ 低库存预警"
-            visible={visible}
+            open={visible}
             onCancel={onClose}
             footer={[
                 <Button key="close" onClick={onClose}>

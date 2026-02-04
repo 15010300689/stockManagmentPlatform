@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Route, Redirect } from 'react-router-dom';
+import { Route, Navigate } from 'react-router-dom';
 import { isAuthenticated, authFetch, clearAuth } from '../auth';
 
 const API_BASE = '/api';
 
 function PrivateRoute({ children, ...rest }) {
-    const [isValid, setIsValid] = useState(null);
+    const [isValid, setIsValid] = useState(true);
 
     useEffect(() => {
-        checkAuth();
+        // checkAuth();
     }, []);
 
     const checkAuth = async () => {
@@ -33,27 +33,11 @@ function PrivateRoute({ children, ...rest }) {
         }
     };
 
-    if (isValid === null) {
-        return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>加载中...</div>;
-    }
+    // if (isValid === null) {
+    //     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>加载中...</div>;
+    // }
 
-    return (
-        <Route
-            {...rest}
-            render={({ location }) =>
-                isValid ? (
-                    children
-                ) : (
-                    <Redirect
-                        to={{
-                            pathname: '/login',
-                            state: { from: location }
-                        }}
-                    />
-                )
-            }
-        />
-    );
+    return isValid ? children : <Navigate to="/login" state={{ from: location }} replace />;
 }
 
 export default PrivateRoute;
