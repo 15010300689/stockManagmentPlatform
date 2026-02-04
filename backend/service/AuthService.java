@@ -2,6 +2,7 @@ package service;
 
 import dao.UserDao;
 import model.User;
+import model.Role;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -63,6 +64,15 @@ public class AuthService {
     }
 
     /**
+     * 根据用户名获取用户对象
+     * @param username 用户名
+     * @return 用户对象
+     */
+    public User getUserByUsername(String username) {
+        return userDao.findUserByUsername(username);
+    }
+
+    /**
      * 用户登出
      * @param token token字符串
      */
@@ -81,9 +91,9 @@ public class AuthService {
     /**
      * 添加用户（用于后续扩展）
      */
-    public boolean addUser(String username, String password, String role) {
-        User user = new User(username, password, role);
+    public boolean addUser(String username, String password, String roles) {
+        User user = new User(username, password, roles);
         return userDao.addUser(user);
-    }
+    }   
 }
 

@@ -3,6 +3,8 @@ package controller;
 import com.sun.net.httpserver.HttpExchange;
 import service.AuthService;
 import util.JsonUtil;
+import model.User;
+import model.Role;
 import java.io.IOException;
 import java.util.*;
 
@@ -43,10 +45,24 @@ public class AuthController {
         
         String token = authService.login(loginReq.username, loginReq.password);
         if (token != null) {
+            // 获取用户信息以返回角色列表
+            User user = authService.getUserByUsername(loginReq.username);
+            List<Map<String, Object>> roleList = new ArrayList<>();
+
+            if (user != null && user.getRole() != null) {
+                for (Role role : user.getRoles()) {
+                    Map<String, Object> roleMap = new HashMap<>();
+                    roleMap.put("id", role.getId());
+                    roleMap.put("roleName", role.getRoleName());
+                    roleList.add(roleMap);
+                }
+            }
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("token", token);
             response.put("username", loginReq.username);
+            response.put("roleList", roleList); // 返回角色列表
             sendJsonResponse(exchange, 200, JsonUtil.toJson(response));
         } else {
             sendJsonResponse(exchange, 401, JsonUtil.error("用户名或密码错误"));
@@ -96,9 +112,22 @@ public class AuthController {
         String username = token != null ? authService.validateToken(token) : null;
         
         if (username != null) {
+             // 获取用户信息以返回角色列表
+            User user = authService.getUserByUsername(username);
+            List<Map<String, Object>> roleList = new ArrayList<>();
+            if (user != null && user.getRoles() != null) {
+                for (Role role : user.getRoles()) {
+                    Map<String, Object> roleMap = new HashMap<>();
+                    roleMap.put("id", role.getId());
+                    roleMap.put("roleName", role.getRoleName());
+                    roleList.add(roleMap);
+                }
+            }
+
             Map<String, Object> response = new HashMap<>();
             response.put("valid", true);
             response.put("username", username);
+            response.put("roleList", roleList); // 返回角色列表
             sendJsonResponse(exchange, 200, JsonUtil.toJson(response));
         } else {
             sendJsonResponse(exchange, 401, JsonUtil.error("Token无效或已过期"));
