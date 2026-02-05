@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Table,
     Button,
@@ -13,18 +13,23 @@ import {
     Row,
     Col,
     Tag,
-    Popconfirm
+    Popconfirm,
+    Select,
+    TreeSelect
 } from 'antd';
 import { authFetch } from '../auth';
 import StatisticsModal from '../components/ProductManagement/StatisticsModal';
 import LowStockModal     from '../components/ProductManagement/LowStockModal';
 import AddProductModal from '../components/ProductManagement/AddProductModal';
 import OutOrInStockModal from '../components/ProductManagement/OutOrInStockModal';
+import InventoryDrawer from '../components/ProductManagement/InventoryDrawer';
 import {
     mockProducts,
     mockStatics,
     mockGetProductsById
 } from '../mock/productManagement';
+import { storeList } from '../mock/storeList';
+import { positionList } from '../mock/positionList';
 
 
 const API_BASE = '/api';
@@ -34,12 +39,15 @@ function ProductManagement() {
     const [loading, setLoading] = useState(false);
     const [stats, setStats] = useState(mockStatics || { productCount: 0, totalValue: 0, categories: [] });
     const [searchKeyword, setSearchKeyword] = useState('');
+    const [warehouseFilter, setWarehouseFilter] = useState(null);
+    const [positionFilter, setPositionFilter] = useState(null);
 
     // 模态框状态
     const [productModalVisible, setProductModalVisible] = useState(false);
     const [stockModalVisible, setStockModalVisible] = useState(false);
     const [statisticsModalVisible, setStatisticsModalVisible] = useState(false);
     const [lowStockModalVisible, setLowStockModalVisible] = useState(false);
+    const [inventoryDrawerVisible, setInventoryDrawerVisible] = useState(false);
 
     // 表单实例
     const [productForm] = Form.useForm();
@@ -49,6 +57,7 @@ function ProductManagement() {
     const [currentProductId, setCurrentProductId] = useState(null);
     const [currentStockType, setCurrentStockType] = useState('in');
     const [currentProduct, setCurrentProduct] = useState(null);
+    const [inventoryProduct, setInventoryProduct] = useState(null);
 
     // 组件挂载时加载数据
     useEffect(() => {
@@ -83,6 +92,33 @@ function ProductManagement() {
             console.error('加载统计信息失败:', error);
         }
     };
+
+    // 构建仓位树（用于下拉选择）
+    const buildTree = (data, warehouseId, parentId = null) => {
+        return data
+            .filter(
+                (item) =>
+                    item.warehouseId === warehouseId &&
+                    ((item.parentId === null && parentId === null) ||
+                        (item.parentId !== null &&
+                            parentId !== null &&
+                            String(item.parentId) === String(parentId)))
+            )
+            .map((item) => {
+                const children = buildTree(data, warehouseId, item.id);
+                return {
+                    id: item.id,
+                    title: `${item.code}${item.name ? ' - ' + item.name : ''}`,
+                    value: item.id,
+                    children: children.length > 0 ? children : undefined,
+                };
+            });
+    };
+
+    const positionTreeData = useMemo(() => {
+        if (!warehouseFilter) return [];
+        return buildTree(positionList, warehouseFilter);
+    }, [warehouseFilter]);
 
     // 打开添加商品模态框
     const openAddModal = () => {
@@ -184,6 +220,23 @@ function ProductManagement() {
         loadProducts();
     };
 
+    const openInventory = (record) => {
+        setInventoryProduct(record);
+        setInventoryDrawerVisible(true);
+    };
+
+    const handleInventoryAdjust = (values) => {
+        console.log('库存调整', values);
+        message.success('已模拟调整库存');
+    };
+
+    const filteredProducts = useMemo(() => {
+        return products.filter((item) => {
+            const matchKeyword = !searchKeyword || item.name.toLowerCase().includes(searchKeyword.toLowerCase());
+            return matchKeyword;
+        });
+    }, [products, searchKeyword]);
+
     // 表格列定义
     const columns = [
         {
@@ -235,7 +288,7 @@ function ProductManagement() {
         {
             title: '操作',
             key: 'action',
-            width: 280,
+            width: 340,
             align: 'center',
             render: (_, record) => (
                 <Space size="small">
@@ -245,18 +298,9 @@ function ProductManagement() {
                     <Button
                         type="link"
                         size="small"
-                        style={{ color: '#52c41a' }}
-                        onClick={() => openStockModal(record.id, 'in')}
+                        onClick={() => openInventory(record)}
                     >
-                        入库
-                    </Button>
-                    <Button
-                        type="link"
-                        size="small"
-                        style={{ color: '#1890ff' }}
-                        onClick={() => openStockModal(record.id, 'out')}
-                    >
-                        出库
+                        库存
                     </Button>
                     <Popconfirm
                         title="确定要删除这个商品吗？"
@@ -302,7 +346,51 @@ function ProductManagement() {
             <Card>
                 <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                     <Space>
-                        <Button type="primary" onClick={openAddModal}>
+                        <Input
+                            placeholder="搜索商品名称..."
+                            value={searchKeyword}
+                            onChange={(e) => setSearchKeyword(e.target.value)}
+                            onPressEnter={handleSearch}
+                            style={{ width: 200 }}
+                            allowClear
+                        />
+                        <Select
+                            allowClear
+                            placeholder="选择仓库（可选）"
+                            style={{ width: 180 }}
+                            value={warehouseFilter}
+                            options={storeList.map(item => ({
+                                label: item.name,
+                                value: item.id,
+                                disabled: item.status !== '1'
+                            }))}
+                            onChange={(val) => {
+                                setWarehouseFilter(val || null);
+                                setPositionFilter(null);
+                            }}
+                        />
+                        <TreeSelect
+                            allowClear
+                            placeholder="选择仓位（可选）"
+                            style={{ width: 220 }}
+                            disabled={!warehouseFilter}
+                            value={positionFilter}
+                            onChange={(val) => setPositionFilter(val || null)}
+                            treeData={positionTreeData}
+                            treeDefaultExpandAll
+                            fieldNames={{
+                                label: 'title',
+                                value: 'id',
+                                children: 'children'
+                            }}
+                        />
+                        
+                        <Button type="primary" onClick={handleSearch}>
+                            搜索
+                        </Button>
+                    </Space>
+                    <Space>
+                        <Button variant='outlined' onClick={openAddModal}>
                             ➕ 添加商品
                         </Button>
                         <Button onClick={() => { loadProducts(); loadStatistics(); message.success('数据已刷新'); }}>
@@ -315,24 +403,11 @@ function ProductManagement() {
                             ⚠️ 低库存预警
                         </Button>
                     </Space>
-                    <Space>
-                        <Input
-                            placeholder="搜索商品名称..."
-                            value={searchKeyword}
-                            onChange={(e) => setSearchKeyword(e.target.value)}
-                            onPressEnter={handleSearch}
-                            style={{ width: 200 }}
-                            allowClear
-                        />
-                        <Button type="primary" onClick={handleSearch}>
-                            搜索
-                        </Button>
-                    </Space>
                 </Space>
 
                 <Table
                     columns={columns}
-                    dataSource={products}
+                    dataSource={filteredProducts}
                     rowKey="id"
                     loading={loading}
                     pagination={{
@@ -347,6 +422,8 @@ function ProductManagement() {
             <AddProductModal
                 currentProductId={currentProductId}
                 visible={productModalVisible}
+                warehouseList={storeList}
+                positionTree={positionList}
                 onClose={
                     () => {
                         setProductModalVisible(false);
@@ -380,6 +457,16 @@ function ProductManagement() {
             <LowStockModal
                 visible={lowStockModalVisible}
                 onClose={() => setLowStockModalVisible(false)}
+            />
+
+            {/* 库存抽屉 */}
+            <InventoryDrawer
+                visible={inventoryDrawerVisible}
+                onClose={() => setInventoryDrawerVisible(false)}
+                product={inventoryProduct}
+                warehouseList={storeList}
+                positionList={positionList}
+                onAdjust={handleInventoryAdjust}
             />
         </div>
     );

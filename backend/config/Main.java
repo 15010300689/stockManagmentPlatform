@@ -2,10 +2,15 @@ package config;
 
 import dao.ProductDao;
 import dao.UserDao;
+import dao.WarehouseDao;
+import dao.PositionDao;
+import dao.InventoryDao;
 import service.ProductService;
 import service.AuthService;
+import service.InventoryService;
 import controller.ProductController;
 import controller.AuthController;
+import controller.InventoryController;
 import model.Product;
 import ApiServer;
 import java.io.IOException;
@@ -17,30 +22,40 @@ import java.io.IOException;
 public class Main {
     private static ProductDao productDao;
     private static UserDao userDao;
+    private static WarehouseDao warehouseDao;
+    private static PositionDao positionDao;
+    private static InventoryDao inventoryDao;
     private static ProductService productService;
     private static AuthService authService;
+    private static InventoryService inventoryService;
     private static ProductController productController;
     private static AuthController authController;
+    private static InventoryController inventoryController;
     private static ApiServer apiServer;
 
     public static void main(String[] args) {
         // 初始化DAO层
         productDao = new ProductDao();
         userDao = new UserDao();
+        warehouseDao = new WarehouseDao();
+        positionDao = new PositionDao();
+        inventoryDao = new InventoryDao();
         
         // 初始化Service层
         productService = new ProductService(productDao);
         authService = new AuthService(userDao);
+        inventoryService = new InventoryService(warehouseDao, positionDao, inventoryDao, productDao);
         
         // 初始化Controller层
         productController = new ProductController(productService);
         authController = new AuthController(authService);
+        inventoryController = new InventoryController(inventoryService);
         
         // 初始化一些示例数据
         initSampleData();
         
         // 创建并启动API服务器
-        apiServer = new ApiServer(productController, authController);
+        apiServer = new ApiServer(productController, authController, inventoryController);
         try {
             apiServer.start();
             System.out.println("\n=========================================");

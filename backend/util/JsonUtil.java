@@ -1,8 +1,11 @@
 package util;
 
 import model.Product;
+import model.Warehouse;
+import model.Position;
 import controller.ProductController;
 import controller.AuthController;
+import controller.InventoryController;
 import java.util.*;
 
 /**
@@ -21,6 +24,14 @@ public class JsonUtil {
         
         if (obj instanceof Product) {
             return productToJson((Product) obj);
+        }
+
+        if (obj instanceof Warehouse) {
+            return warehouseToJson((Warehouse) obj);
+        }
+
+        if (obj instanceof Position) {
+            return positionToJson((Position) obj);
         }
         
         if (obj instanceof List) {
@@ -54,6 +65,36 @@ public class JsonUtil {
         sb.append("\"quantity\":").append(product.getQuantity()).append(",");
         sb.append("\"category\":").append(toJson(product.getCategory())).append(",");
         sb.append("\"totalValue\":").append(product.getTotalValue());
+        sb.append("}");
+        return sb.toString();
+    }
+
+    private static String warehouseToJson(Warehouse w) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        sb.append("\"id\":").append(w.getId()).append(",");
+        sb.append("\"code\":").append(toJson(w.getCode())).append(",");
+        sb.append("\"name\":").append(toJson(w.getName())).append(",");
+        sb.append("\"status\":").append(toJson(w.getStatus())).append(",");
+        sb.append("\"address\":").append(toJson(w.getAddress())).append(",");
+        sb.append("\"contact\":").append(toJson(w.getContact())).append(",");
+        sb.append("\"phone\":").append(toJson(w.getPhone()));
+        sb.append("}");
+        return sb.toString();
+    }
+
+    private static String positionToJson(Position p) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        sb.append("\"id\":").append(p.getId()).append(",");
+        sb.append("\"warehouseId\":").append(p.getWarehouseId()).append(",");
+        sb.append("\"parentId\":").append(p.getParentId() == null ? "null" : p.getParentId()).append(",");
+        sb.append("\"code\":").append(toJson(p.getCode())).append(",");
+        sb.append("\"name\":").append(toJson(p.getName())).append(",");
+        sb.append("\"type\":").append(toJson(p.getType())).append(",");
+        sb.append("\"status\":").append(toJson(p.getStatus())).append(",");
+        sb.append("\"maxCapacity\":").append(p.getMaxCapacity()).append(",");
+        sb.append("\"unit\":").append(toJson(p.getUnit()));
         sb.append("}");
         return sb.toString();
     }
@@ -128,6 +169,10 @@ public class JsonUtil {
         if (clazz == AuthController.LoginRequest.class) {
             return (T) parseLoginRequest(json);
         }
+
+        if (clazz == InventoryController.AdjustRequest.class) {
+            return (T) parseAdjustRequest(json);
+        }
         
         return null;
     }
@@ -179,6 +224,24 @@ public class JsonUtil {
         AuthController.LoginRequest req = new AuthController.LoginRequest();
         req.username = map.get("username");
         req.password = map.get("password");
+        return req;
+    }
+
+    private static InventoryController.AdjustRequest parseAdjustRequest(String json) {
+        Map<String, String> map = parseJsonObject(json);
+        InventoryController.AdjustRequest req = new InventoryController.AdjustRequest();
+        req.productId = map.get("productId");
+        if (map.containsKey("warehouseId")) {
+            try { req.warehouseId = Integer.parseInt(map.get("warehouseId")); } catch (Exception ignored) {}
+        }
+        if (map.containsKey("positionId")) {
+            try { req.positionId = Integer.parseInt(map.get("positionId")); } catch (Exception ignored) {}
+        }
+        req.type = map.get("type");
+        req.remark = map.get("remark");
+        if (map.containsKey("amount")) {
+            try { req.amount = Integer.parseInt(map.getOrDefault("amount", "0")); } catch (Exception ignored) {}
+        }
         return req;
     }
     

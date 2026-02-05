@@ -275,7 +275,7 @@ public class ProductController {
             String[] pair = param.split("=");
             if (pair.length == 2 && paramName.equals(pair[0])) {
                 try {
-                    return java.net.URLDecoder.decode(pair[1], java.nio.charset.StandardCharsets.UTF_8);
+                    return java.net.URLDecoder.decode(pair[1], "UTF-8");
                 } catch (Exception e) {
                     return pair[1];
                 }
@@ -285,13 +285,13 @@ public class ProductController {
     }
 
     // 内部类用于JSON反序列化
-    static class ProductUpdateRequest {
+    public static class ProductUpdateRequest {
         public String name;
         public double price = -1;
         public String category;
     }
 
-    static class StockOperation {
+    public static class StockOperation {
         public String id;
         public int amount;
     }

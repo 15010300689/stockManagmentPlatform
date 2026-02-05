@@ -2,6 +2,7 @@ import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpExchange;
 import controller.ProductController;
 import controller.AuthController;
+import controller.InventoryController;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
@@ -14,11 +15,13 @@ public class ApiServer {
     private HttpServer server;
     private ProductController productController;
     private AuthController authController;
+    private InventoryController inventoryController;
     private static final int PORT = 8080;
 
-    public ApiServer(ProductController productController, AuthController authController) {
+    public ApiServer(ProductController productController, AuthController authController, InventoryController inventoryController) {
         this.productController = productController;
         this.authController = authController;
+        this.inventoryController = inventoryController;
     }
 
     /**
@@ -100,6 +103,52 @@ public class ApiServer {
             try {
                 if (authController.validateToken(exchange)) {
                     productController.handleStockOut(exchange);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        // 仓库/仓位及库存接口
+        server.createContext("/api/stores", exchange -> {
+            try {
+                if (authController.validateToken(exchange)) {
+                    inventoryController.handleStores(exchange);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        server.createContext("/api/positions", exchange -> {
+            try {
+                if (authController.validateToken(exchange)) {
+                    inventoryController.handlePositions(exchange);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        server.createContext("/api/inventory/summary", exchange -> {
+            try {
+                if (authController.validateToken(exchange)) {
+                    inventoryController.handleInventorySummary(exchange);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        server.createContext("/api/inventory/positions", exchange -> {
+            try {
+                if (authController.validateToken(exchange)) {
+                    inventoryController.handleInventoryPositions(exchange);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        server.createContext("/api/inventory/adjust", exchange -> {
+            try {
+                if (authController.validateToken(exchange)) {
+                    inventoryController.handleInventoryAdjust(exchange);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
