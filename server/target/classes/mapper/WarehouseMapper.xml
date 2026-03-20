@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stock.mapper.WarehouseMapper">
+
+    <select id="findAll" resultType="com.stock.entity.Warehouse">
+        SELECT id, code, name, status, address, contact, phone FROM warehouse ORDER BY id
+    </select>
+
+    <select id="findById" resultType="com.stock.entity.Warehouse">
+        SELECT id, code, name, status, address, contact, phone FROM warehouse WHERE id = #{id}
+    </select>
+
+</mapper>

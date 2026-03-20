@@ -1,6 +1,8 @@
 # 库存管理系统
 
-一个基于Java的Web库存管理系统，采用前后端分离架构，前端使用React + Ant Design UI框架，提供美观整洁的用户界面。
+一个基于 Spring Boot + MySQL 的库存管理系统，采用前后端分离架构，前端使用 React + Ant Design UI 框架，提供美观整洁的用户界面。
+
+> 当前唯一后端目录为 `server/`。
 
 ## 功能特性
 
@@ -29,74 +31,44 @@
 
 ```
 stockManagementPlatform/
-backend/
-├── ApiServer.java          # HTTP服务器配置和路由
-├── config/
-│   └── Main.java           # 应用启动入口
-├── controller/             # 表现层（Controller层）
-│   ├── ProductController.java
-│   └── AuthController.java
-├── service/                # 业务逻辑层（Service层）
-│   ├── ProductService.java
-│   └── AuthService.java
-├── dao/                    # 数据访问层（DAO层）
-│   ├── ProductDao.java
-│   └── UserDao.java
-├── model/                  # 实体层
-│   ├── Product.java
-│   └── User.java
-└── util/                   # 工具层
-    └── JsonUtil.java
-├── frontend/                   # 前端工程目录
-│   ├── package.json                # 前端依赖配置
-│   ├── vite.config.js              # Vite构建配置
-│   ├── index.html                  # 前端入口HTML（开发用）
-│   └── src/                        # 前端源代码目录
-│       ├── main.jsx               # React应用入口
-│       ├── App.jsx                # 主应用组件（路由配置）
-│       ├── auth.js                # 认证工具函数
-│       ├── index.css              # 全局样式
-│       ├── components/            # 可复用组件
-│       │   ├── StatisticsModal.jsx   # 统计信息模态框
-│       │   └── LowStockModal.jsx     # 低库存预警模态框
-│       ├── pages/                 # 页面组件
-│       │   ├── Login.jsx             # 登录页面
-│       │   ├── ProductManagement.jsx # 商品管理页面
-│       │   ├── AccountManagement.jsx # 账号管理页面
-│       │   ├── PermissionManagement.jsx # 权限管理页面
-│       │   ├── RoleManagement.jsx    # 角色管理页面
-│       │   └── UserManagement.jsx    # 用户管理页面
-│       ├── layouts/               # 布局组件
-│       │   └── MainLayout.jsx        # 主布局组件
-│       └── routes/                # 路由配置
-│           ├── index.jsx            # 路由配置入口
-│           └── PrivateRoute.jsx     # 私有路由保护组件
-└── README.md                    # 项目说明文档
+├── server/                         # Spring Boot 后端（唯一运行后端）
+│   ├── pom.xml
+│   ├── src/main/java/com/stock/
+│   │   ├── controller/             # 控制层
+│   │   ├── service/                # 业务层
+│   │   ├── mapper/                 # MyBatis Mapper
+│   │   ├── entity/                 # 实体层
+│   │   ├── dto/                    # DTO
+│   │   ├── config/                 # 配置（JWT、拦截器、异常处理）
+│   │   └── util/                   # 工具类
+│   └── src/main/resources/
+│       ├── mapper/                 # MyBatis XML
+│       ├── sql/                    # schema.sql / data.sql
+│       └── static/                 # 前端构建产物目录
+├── frontend/                       # 前端工程目录
+    ├── package.json
+    ├── vite.config.js
+    └── src/
 ```
 
 ## 编译和运行
 
-### 后端运行
+### 启动步骤
+```
+# 1. 先在 MySQL 中执行建表和初始化数据
 
-#### 1. 进入后端目录
+mysql -u root -p < server/src/main/resources/sql/schema.sql
+mysql -u root -p < server/src/main/resources/sql/data.sql
 
-```bash
-cd backend
+
+# 2. 修改 application.yml 中的数据库密码
+
+# 3. 启动后端
+cd server
+mvn spring-boot:run
 ```
 
-#### 2. 编译Java文件
 
-```bash
-javac *.java
-```
-
-#### 3. 运行服务器
-
-```bash
-java Main
-```
-
-服务器将在 `http://localhost:8080` 启动。
 
 ### 前端运行
 
@@ -148,32 +120,7 @@ npm run build
 yarn build
 ```
 
-构建后的文件将输出到 `../backend/web` 目录。
-
-4. 启动后端服务器
-
-在项目根目录执行：
-
-```bash
-cd backend
-javac *.java
-java Main
-```
-
-5. 访问系统
-
-在浏览器中打开：`http://localhost:8080`
-
-### 预览生产构建
-
-如果想预览构建后的结果，可以在前端目录运行：
-
-```bash
-cd frontend
-npm run preview
-# 或
-yarn preview
-```
+构建后的文件将输出到 `../server/src/main/resources/static` 目录。
 
 ## 默认账号
 
@@ -273,10 +220,11 @@ yarn preview
 ## 技术栈
 
 ### 后端
-- Java SE（使用内置HttpServer）
-- RESTful API设计
-- JSON数据交换
-- Token认证机制
+- Spring Boot
+- MyBatis
+- MySQL
+- RESTful API 设计
+- JWT 认证机制
 
 ### 前端
 - React 17
@@ -303,39 +251,36 @@ yarn preview
 - `username`: 用户名
 - `password`: 密码（实际应用中应加密存储）
 
-### InventoryManager 类
-库存管理核心类，提供以下功能：
-- 商品的增删改查
-- 库存的入库和出库操作
-- 商品统计和查询功能
+### ProductService 类
+商品业务服务类，提供以下功能：
+- 商品增删改查
+- 商品入库与出库
+- 库存统计与低库存查询
 
-### AuthManager 类
-认证管理类，提供以下功能：
+### AuthService 类
+认证业务服务类，提供以下功能：
 - 用户登录验证
-- Token生成和管理
-- Token验证和过期处理
+- JWT Token 生成和校验
+- 用户角色信息加载
 
-### ApiServer 类
-REST API服务器类，提供：
-- HTTP服务器功能
-- RESTful API路由
-- 静态文件服务
-- JSON响应处理
-- CORS支持
-- Token验证中间件
+### InventoryService 类
+库存业务服务类，提供以下功能：
+- 仓库和仓位查询
+- 分仓库存汇总
+- 库存调整与流水记录
 
-### JsonUtil 类
-JSON工具类，提供：
-- 对象到JSON字符串的序列化
-- JSON字符串到对象的反序列化
-- 简单的JSON解析功能
+### Controller 层
+后端控制层包括：
+- `AuthController`：登录/登出/Token验证
+- `ProductController`：商品管理与统计接口
+- `InventoryController`：仓库、仓位与库存接口
+- `MenuController`：动态菜单与角色菜单授权接口
 
-### Main 类
-主程序类，负责：
-- 初始化库存管理器
-- 初始化认证管理器
-- 加载示例数据
-- 启动HTTP服务器
+### StockApplication 类
+Spring Boot 启动类，负责：
+- 应用初始化与自动装配
+- Mapper 扫描
+- Web 服务启动
 
 ## 前端架构说明
 
@@ -373,7 +318,7 @@ JSON工具类，提供：
 - 价格和数量必须为非负数
 - 服务器默认运行在8080端口
 - 前端开发服务器默认运行在3000端口
-- 生产环境构建后，静态文件会输出到 `backend/web` 目录，由后端服务器提供
+- 生产环境构建后，静态文件会输出到 `server/src/main/resources/static` 目录，由 Spring Boot 提供
 - 开发模式下，前端通过Vite代理访问后端API（`/api` -> `http://localhost:8080/api`）
 - Token存储在浏览器的localStorage中，清除浏览器数据会导致需要重新登录
 - 在生产环境中，建议修改默认账号密码，并实现密码加密存储
@@ -382,19 +327,21 @@ JSON工具类，提供：
 
 ### 自定义端口
 
-要修改服务器端口，编辑 `backend/ApiServer.java` 中的 `PORT` 常量：
+要修改服务器端口，编辑 `server/src/main/resources/application.yml` 中的 `server.port`：
 
-```java
-private static final int PORT = 8080; // 修改为你想要的端口
+```yaml
+server:
+  port: 8080
 ```
 
 ### 添加新功能
 
 #### 后端
 
-1. 在 `InventoryManager` 或 `AuthManager` 中添加业务逻辑
-2. 在 `ApiServer` 中添加新的API路由
-3. 如需要认证，确保API处理函数中包含Token验证逻辑
+1. 在 `server/src/main/java/com/stock/service/` 中补充业务逻辑
+2. 在 `server/src/main/java/com/stock/controller/` 中新增或扩展 API
+3. 如需持久化，新增 Mapper 接口和 `resources/mapper` 对应 XML
+4. 如需鉴权，结合 JWT 拦截器与角色权限配置处理
 
 #### 前端
 

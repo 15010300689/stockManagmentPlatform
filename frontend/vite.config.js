@@ -18,7 +18,7 @@ export default defineConfig({
         }
     },
     build: {
-        outDir: '../backend/web',
+        outDir: '../server/src/main/resources/static',
         assetsDir: 'assets',
         emptyOutDir: true, // 清空输出目录
         rollupOptions: {

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stock.mapper.ProductMapper">
+
+    <select id="findAll" resultType="com.stock.entity.Product">
+        SELECT id, name, price, quantity, category FROM product ORDER BY id
+    </select>
+
+    <select id="findByName" resultType="com.stock.entity.Product">
+        SELECT id, name, price, quantity, category FROM product
+        WHERE name LIKE CONCAT('%', #{name}, '%')
+    </select>
+
+    <select id="findByCategory" resultType="com.stock.entity.Product">
+        SELECT id, name, price, quantity, category FROM product
+        WHERE category = #{category}
+    </select>
+
+    <select id="findById" resultType="com.stock.entity.Product">
+        SELECT id, name, price, quantity, category FROM product WHERE id = #{id}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO product (id, name, price, quantity, category)
+        VALUES (#{id}, #{name}, #{price}, #{quantity}, #{category})
+    </insert>
+
+    <update id="update">
+        UPDATE product
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="quantity != null">quantity = #{quantity},</if>
+            <if test="category != null">category = #{category},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM product WHERE id = #{id}
+    </delete>
+
+    <update id="addQuantity">
+        UPDATE product SET quantity = quantity + #{amount} WHERE id = #{id}
+    </update>
+
+    <update id="reduceQuantity">
+        UPDATE product SET quantity = quantity - #{amount}
+        WHERE id = #{id} AND quantity >= #{amount}
+    </update>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM product
+    </select>
+
+    <select id="sumTotalValue" resultType="java.math.BigDecimal">
+        SELECT IFNULL(SUM(price * quantity), 0) FROM product
+    </select>
+
+    <select id="findAllCategories" resultType="string">
+        SELECT DISTINCT category FROM product WHERE category IS NOT NULL
+    </select>
+
+    <select id="findLowStock" resultType="com.stock.entity.Product">
+        SELECT id, name, price, quantity, category FROM product
+        WHERE quantity &lt; #{threshold}
+        ORDER BY quantity ASC
+    </select>
+
+</mapper>
