@@ -46,9 +46,9 @@ stockManagementPlatform/
 │       ├── sql/                    # schema.sql / data.sql
 │       └── static/                 # 前端构建产物目录
 ├── frontend/                       # 前端工程目录
-    ├── package.json
-    ├── vite.config.js
-    └── src/
+│       ├── package.json
+│       ├── vite.config.js
+│       └── src/
 ```
 
 ## 编译和运行

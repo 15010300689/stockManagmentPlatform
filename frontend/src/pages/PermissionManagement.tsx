@@ -248,7 +248,7 @@ function PermissionManagement(): JSX.Element {
                 open={modalVisible}
                 onCancel={closeModal}
                 onOk={saveMenu}
-                destroyOnClose
+                destroyOnHidden
             >
                 <Form form={form} layout="vertical">
                     <Form.Item label="父菜单" name="parentId" rules={[{ required: true, message: '请选择父菜单' }]}>
