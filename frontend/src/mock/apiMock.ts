@@ -233,15 +233,62 @@ export async function mockApiFetch(url: string, options: RequestInit = {}): Prom
         return jsonResponse(list);
     }
 
+    if (pathname === '/api/products' && method === 'POST') {
+        const name = String(body.name || '').trim();
+        if (!name) {
+            return jsonResponse({ success: false, message: '商品名称不能为空(mock)' }, 400);
+        }
+        const dup = productDb.find((p) => String(p.name).trim() === name);
+        if (dup) {
+            return jsonResponse({ success: false, message: '商品名称已存在(mock)' }, 400);
+        }
+        const nextId = Math.max(0, ...productDb.map((p) => Number(p.id) || 0)) + 1;
+        const row = {
+            id: nextId,
+            name,
+            category: String(body.category ?? ''),
+            price: Number(body.price ?? 0),
+            quantity: 0,
+            safeStock: body.safeStock != null && body.safeStock !== '' ? Number(body.safeStock) : undefined,
+            status: body.status != null ? Number(body.status) : 1,
+        };
+        productDb.push(row);
+        return jsonResponse({ success: true, message: '商品添加成功(mock)', data: row });
+    }
+
     if (pathname === '/api/product' && method === 'GET') {
         const id = parsedUrl.searchParams.get('id');
-        const item = productDb.find((p) => p.id === id);
+        const item = productDb.find((p) => String(p.id) === String(id));
         return item ? jsonResponse(item) : jsonResponse({ message: '商品不存在(mock)' }, 404);
+    }
+
+    if (pathname === '/api/product' && method === 'PUT') {
+        const id = parsedUrl.searchParams.get('id');
+        const item = productDb.find((p) => String(p.id) === String(id));
+        if (!item) {
+            return jsonResponse({ success: false, message: '商品不存在(mock)' }, 404);
+        }
+        const name = String(body.name ?? item.name).trim();
+        if (!name) {
+            return jsonResponse({ success: false, message: '商品名称不能为空(mock)' }, 400);
+        }
+        const clash = productDb.find((p) => String(p.id) !== String(id) && String(p.name).trim() === name);
+        if (clash) {
+            return jsonResponse({ success: false, message: '商品名称已存在(mock)' }, 400);
+        }
+        Object.assign(item, {
+            name,
+            category: body.category != null ? String(body.category) : item.category,
+            price: body.price != null ? Number(body.price) : item.price,
+            safeStock: body.safeStock !== undefined && body.safeStock !== '' ? Number(body.safeStock) : (item as { safeStock?: number }).safeStock,
+            status: body.status != null ? Number(body.status) : (item as { status?: number }).status,
+        });
+        return jsonResponse({ success: true, message: '商品更新成功(mock)' });
     }
 
     if (pathname === '/api/product' && method === 'DELETE') {
         const id = parsedUrl.searchParams.get('id');
-        const idx = productDb.findIndex((p) => p.id === id);
+        const idx = productDb.findIndex((p) => String(p.id) === String(id));
         if (idx < 0) return jsonResponse({ success: false, message: '商品不存在(mock)' }, 404);
         productDb.splice(idx, 1);
         return jsonResponse({ success: true, message: '删除成功(mock)' });
@@ -259,14 +306,20 @@ export async function mockApiFetch(url: string, options: RequestInit = {}): Prom
 
     if (pathname === '/api/low-stock' && method === 'GET') {
         const threshold = Number(parsedUrl.searchParams.get('threshold') || 10);
-        const list = productDb.filter((p) => p.quantity <= threshold);
+        const list = productDb.filter((p: { quantity: number; safeStock?: number }) => {
+            const ss = p.safeStock;
+            if (ss != null && Number.isFinite(Number(ss))) {
+                return p.quantity < Number(ss);
+            }
+            return p.quantity < threshold;
+        });
         return jsonResponse(list);
     }
 
     if ((pathname === '/api/stock-in' || pathname === '/api/stock-out') && method === 'POST') {
-        const id = String(body.id || '');
+        const id = String(body.id ?? '');
         const amount = Number(body.amount || 0);
-        const item = productDb.find((p) => p.id === id);
+        const item = productDb.find((p) => String(p.id) === id);
         if (!item) return jsonResponse({ success: false, message: '商品不存在(mock)' }, 404);
         if (pathname.endsWith('stock-out') && item.quantity < amount) {
             return jsonResponse({ success: false, message: '库存不足(mock)' }, 400);

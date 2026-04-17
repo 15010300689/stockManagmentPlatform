@@ -4,11 +4,40 @@
 <mapper namespace="com.stock.mapper.WarehouseMapper">
 
     <select id="findAll" resultType="com.stock.entity.Warehouse">
-        SELECT id, code, name, status, address, contact, phone FROM warehouse ORDER BY id
+        SELECT id, code, name, status, address, contact, phone, create_time FROM warehouse ORDER BY id
     </select>
 
     <select id="findById" resultType="com.stock.entity.Warehouse">
-        SELECT id, code, name, status, address, contact, phone FROM warehouse WHERE id = #{id}
+        SELECT id, code, name, status, address, contact, phone, create_time FROM warehouse WHERE id = #{id}
     </select>
+
+    <select id="findByCode" resultType="com.stock.entity.Warehouse">
+        SELECT id, code, name, status, address, contact, phone, create_time
+        FROM warehouse
+        WHERE code = #{code}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.stock.entity.Warehouse" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO warehouse (code, name, status, address, contact, phone)
+        VALUES (#{code}, #{name}, #{status}, #{address}, #{contact}, #{phone})
+    </insert>
+
+    <update id="update" parameterType="com.stock.entity.Warehouse">
+        UPDATE warehouse
+        <set>
+            <if test="code != null">code = #{code},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="address != null">address = #{address},</if>
+            <if test="contact != null">contact = #{contact},</if>
+            <if test="phone != null">phone = #{phone},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM warehouse WHERE id = #{id}
+    </delete>
 
 </mapper>

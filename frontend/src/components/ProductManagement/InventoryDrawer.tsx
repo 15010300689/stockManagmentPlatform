@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { ProductItem, StoreItem, PositionItem } from '../../types/inventory';
 import {
     Drawer,
@@ -25,6 +25,7 @@ import {
     BarsOutlined,
     ContainerOutlined
 } from '@ant-design/icons';
+import { authFetch } from '../../auth';
 
 const { Text } = Typography;
 
@@ -37,6 +38,34 @@ interface InventoryDrawerProps {
     onAdjust?: (values: unknown) => void;
 }
 
+interface SummaryRow {
+    warehouseId: number;
+    warehouseName: string;
+    status: string;
+    available: number;
+    reserved: number;
+    total: number;
+}
+
+interface PositionRow {
+    warehouseId: number;
+    warehouseName: string;
+    positionId?: number;
+    positionName?: string;
+    code?: string;
+    quantity: number;
+}
+
+interface AdjustFormValues {
+    warehouseId: number;
+    positionId?: number;
+    amount: number;
+    type: 'in' | 'out';
+    remark?: string;
+}
+
+const API_BASE = '/api';
+
 function InventoryDrawer({
     visible = false,
     onClose = () => {},
@@ -46,6 +75,9 @@ function InventoryDrawer({
     onAdjust = () => {}
 }: InventoryDrawerProps): JSX.Element {
     const [form] = Form.useForm();
+    const [summaryRows, setSummaryRows] = useState<SummaryRow[]>([]);
+    const [positionRows, setPositionRows] = useState<PositionRow[]>([]);
+    const [inventoryLoading, setInventoryLoading] = useState(false);
 
     // 构建树形仓位数据
     const buildTree = (data, warehouseId, parentId = null) => {
@@ -75,8 +107,8 @@ function InventoryDrawer({
         disabled: item.status !== '1',
     }));
 
-    // 汇总数据（示例用简单分摊）
-    const summaryData = useMemo(() => {
+    // mock 汇总兜底
+    const fallbackSummaryData = useMemo(() => {
         const totalQuantity = product?.quantity || 0;
         const base = Math.max(totalQuantity, 0);
         const len = warehouseList.length || 1;
@@ -168,10 +200,77 @@ function InventoryDrawer({
         ];
     }, [product]);
 
-    const handleAdjust = async (values) => {
-        onAdjust(values);
-        message.success('已模拟调整库存');
-        form.resetFields();
+    useEffect(() => {
+        const loadInventoryData = async () => {
+            if (!visible || !product?.id) return;
+            setInventoryLoading(true);
+            try {
+                const [summaryRes, positionsRes] = await Promise.all([
+                    authFetch(`${API_BASE}/inventory/summary?productId=${encodeURIComponent(String(product.id))}`),
+                    authFetch(`${API_BASE}/inventory/positions?productId=${encodeURIComponent(String(product.id))}`)
+                ]);
+
+                if (summaryRes.ok) {
+                    const summaryPayload = await summaryRes.json();
+                    if (Array.isArray(summaryPayload)) {
+                        setSummaryRows(summaryPayload as SummaryRow[]);
+                    } else {
+                        setSummaryRows(fallbackSummaryData);
+                    }
+                } else {
+                    setSummaryRows(fallbackSummaryData);
+                }
+
+                if (positionsRes.ok) {
+                    const positionsPayload = await positionsRes.json();
+                    if (Array.isArray(positionsPayload)) {
+                        setPositionRows(positionsPayload as PositionRow[]);
+                    } else {
+                        setPositionRows([]);
+                    }
+                } else {
+                    setPositionRows([]);
+                }
+            } catch (error) {
+                console.warn('加载库存弹窗数据失败，已回退 mock', error);
+                setSummaryRows(fallbackSummaryData);
+                setPositionRows([]);
+                message.warning('后端库存接口异常，已回退为 mock 展示');
+            } finally {
+                setInventoryLoading(false);
+            }
+        };
+
+        void loadInventoryData();
+    }, [visible, product?.id, fallbackSummaryData]);
+
+    const handleAdjust = async (values: AdjustFormValues) => {
+        if (!product?.id) return;
+        try {
+            const response = await authFetch(`${API_BASE}/inventory/adjust`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    productId: Number(product.id),
+                    warehouseId: values.warehouseId,
+                    positionId: values.positionId ?? null,
+                    amount: values.amount,
+                    type: values.type,
+                    remark: values.remark || ''
+                })
+            });
+            const result = await response.json();
+            if (!response.ok || result?.success === false) {
+                message.error(result?.message || '库存调整失败');
+                return;
+            }
+            onAdjust(values);
+            message.success(result?.message || '库存调整成功');
+            form.resetFields();
+        } catch (error) {
+            onAdjust(values);
+            message.warning('后端库存调整接口不可用，已回退为 mock 调整');
+            form.resetFields();
+        }
     };
 
     return (
@@ -216,7 +315,8 @@ function InventoryDrawer({
                                     <Table
                                         size="small"
                                         rowKey="warehouseId"
-                                        dataSource={summaryData}
+                                        loading={inventoryLoading}
+                                        dataSource={summaryRows.length ? summaryRows : fallbackSummaryData}
                                         columns={summaryColumns}
                                         pagination={false}
                                     />
@@ -227,7 +327,7 @@ function InventoryDrawer({
                             key: 'adjust',
                             label: '库存调整',
                             children: (
-                                <Form
+                                    <Form
                                     form={form}
                                     layout="vertical"
                                     initialValues={{ type: 'in' }}
@@ -312,7 +412,21 @@ function InventoryDrawer({
                         {
                             key: 'positions',
                             label: '仓位树',
-                            children: positionTree.length ? (
+                            children: positionRows.length ? (
+                                <Table
+                                    size="small"
+                                    rowKey={(row) => `${row.warehouseId}-${row.positionId || 0}`}
+                                    dataSource={positionRows}
+                                    columns={[
+                                        { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName' },
+                                        { title: '仓位编码', dataIndex: 'code', key: 'code' },
+                                        { title: '仓位名称', dataIndex: 'positionName', key: 'positionName' },
+                                        { title: '数量', dataIndex: 'quantity', key: 'quantity' }
+                                    ]}
+                                    pagination={false}
+                                    loading={inventoryLoading}
+                                />
+                            ) : positionTree.length ? (
                                 <Table
                                     size="small"
                                     pagination={false}

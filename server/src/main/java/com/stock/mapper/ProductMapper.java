@@ -13,18 +13,24 @@ public interface ProductMapper {
 
     List<Product> findByCategory(@Param("category") String category);
 
-    Product findById(@Param("id") String id);
+    Product findById(@Param("id") Long id);
+
+    /** 名称完全一致（用于唯一性校验，入参需已 trim） */
+    Product findByExactName(@Param("name") String name);
+
+    /** 是否存在同名其他商品（编辑时用） */
+    int countByNameExceptId(@Param("name") String name, @Param("id") Long id);
 
     int insert(Product product);
 
     int update(Product product);
 
-    int deleteById(@Param("id") String id);
+    int deleteById(@Param("id") Long id);
 
     /** 库存增减 */
-    int addQuantity(@Param("id") String id, @Param("amount") int amount);
+    int addQuantity(@Param("id") Long id, @Param("amount") int amount);
 
-    int reduceQuantity(@Param("id") String id, @Param("amount") int amount);
+    int reduceQuantity(@Param("id") Long id, @Param("amount") int amount);
 
     /** 统计 */
     int countAll();

@@ -29,10 +29,11 @@ interface DataListProps {
     treeData?: TreeNode[];
     onEdit?: (node: TreeNode) => void;
     onDelete?: (node: TreeNode) => void;
+    loading?: boolean;
 }
 
 function DataList(props: DataListProps): JSX.Element {
-    const { treeData = [], onEdit, onDelete } = props;
+    const { treeData = [], onEdit, onDelete, loading = false } = props;
     const [expandedKeys, setExpandedKeys] = useState<Record<number, boolean>>({});
 
     // 初始化展开状态：默认展开第一层
@@ -260,7 +261,7 @@ function DataList(props: DataListProps): JSX.Element {
             </Card>
 
             {/* 仓位树形列表 */}
-            <div>
+            <div style={{ opacity: loading ? 0.6 : 1, pointerEvents: loading ? 'none' : 'auto' }}>
                 {treeData.map(node => renderNodeCard(node, 0))}
             </div>
         </div>

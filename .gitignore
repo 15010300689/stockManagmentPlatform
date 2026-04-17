@@ -17,6 +17,7 @@ backend/web/
 *.swp
 *.swo
 *~
+.cursor/
 
 # OS
 .DS_Store

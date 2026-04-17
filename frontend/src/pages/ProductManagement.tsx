@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Table,
     Button,
@@ -12,8 +12,6 @@ import {
     Col,
     Tag,
     Popconfirm,
-    Select,
-    TreeSelect
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { authFetch, hasPermission } from '../auth';
@@ -24,8 +22,7 @@ import OutOrInStockModal from '../components/ProductManagement/OutOrInStockModal
 import InventoryDrawer from '../components/ProductManagement/InventoryDrawer';
 import {
     mockProducts,
-    mockStatics,
-    mockGetProductsById
+    mockStatics
 } from '../mock/productManagement';
 import { storeList } from '../mock/storeList';
 import { positionList } from '../mock/positionList';
@@ -36,12 +33,14 @@ const API_BASE = '/api';
 type StockType = 'in' | 'out';
 
 interface ProductItem {
-    id: string;
+    id: string | number;
     name: string;
     category: string;
     price: number;
     quantity: number;
     totalValue?: number;
+    safeStock?: number;
+    status?: number;
 }
 
 interface Stats {
@@ -50,32 +49,39 @@ interface Stats {
     categories: string[];
 }
 
-interface PositionItem {
+interface StoreItem {
     id: number;
-    warehouseId: number;
-    parentId: number | null;
     code: string;
-    name?: string;
-}
-
-interface PositionTreeNode {
-    id: number;
-    title: string;
-    value: number;
-    children?: PositionTreeNode[];
+    name: string;
+    status: string;
 }
 
 interface StockSubmitValues {
     amount: number;
 }
 
+interface PositionNodeItem {
+    id: number;
+    warehouseId: number;
+    parentId: number | null;
+    code: string;
+    name?: string;
+    status: string;
+    type: string;
+    maxCapacity: number;
+    unit?: string;
+}
+
 function ProductManagement() {
     const [products, setProducts] = useState<ProductItem[]>(mockProducts as ProductItem[]);
     const [loading, setLoading] = useState(false);
     const [stats, setStats] = useState<Stats>((mockStatics as Stats) || { productCount: 0, totalValue: 0, categories: [] });
-    const [searchKeyword, setSearchKeyword] = useState('');
-    const [warehouseFilter, setWarehouseFilter] = useState<number | null>(null);
-    const [positionFilter, setPositionFilter] = useState<number | null>(null);
+    /** 输入框中的关键字（仅展示，不触发列表过滤） */
+    const [searchInput, setSearchInput] = useState('');
+    /** 点击「搜索」后生效的关键字，用于请求接口；刷新/增删改后仍按该条件拉列表 */
+    const [appliedSearch, setAppliedSearch] = useState('');
+    const [warehouseOptions, setWarehouseOptions] = useState<StoreItem[]>(storeList as unknown as StoreItem[]);
+    const [positionOptions, setPositionOptions] = useState<PositionNodeItem[]>(positionList as unknown as PositionNodeItem[]);
 
     // 模态框状态
     const [productModalVisible, setProductModalVisible] = useState(false);
@@ -103,16 +109,19 @@ function ProductManagement() {
 
     // 组件挂载时加载数据
     useEffect(() => {
-        // loadProducts();
-        // loadStatistics();
+        loadProducts();
+        loadStatistics();
+        loadWarehousesAndPositions();
     }, []);
 
-    // 加载商品列表
-    const loadProducts = async () => {
+    // 加载商品列表（nameQuery 仅在「搜索」等场景显式传入，避免与 appliedSearch 更新不同步）
+    const loadProducts = async (nameQuery?: string) => {
         setLoading(true);
         try {
-            const url = searchKeyword
-                ? `${API_BASE}/products?name=${encodeURIComponent(searchKeyword)}`
+            const effective =
+                nameQuery !== undefined ? nameQuery.trim() : appliedSearch.trim();
+            const url = effective
+                ? `${API_BASE}/products?name=${encodeURIComponent(effective)}`
                 : `${API_BASE}/products`;
             const response = await authFetch(url);
             const data = (await response.json()) as ProductItem[];
@@ -135,36 +144,51 @@ function ProductManagement() {
         }
     };
 
-    // 构建仓位树（用于下拉选择）
-    const buildTree = (
-        data: PositionItem[],
-        warehouseId: number,
-        parentId: number | null = null
-    ): PositionTreeNode[] => {
-        return data
-            .filter(
-                (item) =>
-                    item.warehouseId === warehouseId &&
-                    ((item.parentId === null && parentId === null) ||
-                        (item.parentId !== null &&
-                            parentId !== null &&
-                            String(item.parentId) === String(parentId)))
-            )
-            .map((item): PositionTreeNode => {
-                const children = buildTree(data, warehouseId, item.id);
-                return {
-                    id: item.id,
-                    title: `${item.code}${item.name ? ' - ' + item.name : ''}`,
-                    value: item.id,
-                    children: children.length > 0 ? children : undefined,
-                };
-            });
-    };
+    const loadWarehousesAndPositions = async () => {
+        try {
+            const [storesRes, positionsRes] = await Promise.all([
+                authFetch(`${API_BASE}/stores`),
+                authFetch(`${API_BASE}/positions`)
+            ]);
 
-    const positionTreeData = useMemo(() => {
-        if (!warehouseFilter) return [];
-        return buildTree(positionList as PositionItem[], warehouseFilter);
-    }, [warehouseFilter]);
+            if (storesRes.ok) {
+                const storesData = await storesRes.json();
+                if (Array.isArray(storesData)) {
+                    setWarehouseOptions(
+                        storesData.map((item: Record<string, unknown>) => ({
+                            id: Number(item.id),
+                            code: String(item.code || ''),
+                            name: String(item.name || ''),
+                            status: String(item.status || '1')
+                        }))
+                    );
+                }
+            }
+
+            if (positionsRes.ok) {
+                const positionsData = await positionsRes.json();
+                if (Array.isArray(positionsData)) {
+                    setPositionOptions(
+                        positionsData.map((item: Record<string, unknown>) => ({
+                            id: Number(item.id),
+                            warehouseId: Number(item.warehouseId ?? item.warehouse_id),
+                            parentId: item.parentId === undefined ? (item.parent_id as number | null) : (item.parentId as number | null),
+                            code: String(item.code || ''),
+                            name: item.name ? String(item.name) : '',
+                            status: item.status ? String(item.status) : '1',
+                            type: item.type ? String(item.type) : 'area',
+                            maxCapacity: Number(item.maxCapacity ?? item.max_capacity ?? 0),
+                            unit: item.unit ? String(item.unit) : undefined,
+                        }))
+                    );
+                }
+            }
+        } catch (error) {
+            console.warn('加载仓库/仓位失败，已回退 mock 数据', error);
+            setWarehouseOptions(storeList as unknown as StoreItem[]);
+            setPositionOptions(positionList as unknown as PositionNodeItem[]);
+        }
+    };
 
     // 打开添加商品模态框
     const openAddModal = () => {
@@ -175,58 +199,55 @@ function ProductManagement() {
     };
 
     // 打开编辑商品模态框
-    const openEditModal = async (productId: string) => {
-        try {
-            const response = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(productId)}`);
-            if (!response.ok) {
-                message.error('获取商品信息失败');
-                return;
-            }
-            const product = (await response.json()) as ProductItem;
-            setCurrentProductId(productId);
-            productForm.setFieldsValue({
-                id: product.id,
-                name: product.name,
-                category: product.category,
-                price: product.price,
-                quantity: product.quantity
-            });
-            setProductModalVisible(true);
-        } catch (error) {
-            message.error('获取商品信息失败: ' + (error as Error).message);
-        }
+    const openEditModal = (productId: string | number) => {
+        setCurrentProductId(String(productId));
+        setProductModalVisible(true);
     };
 
-    // 删除商品
-    const handleDelete = async (productId: string) => {
+    // 删除商品（Spring 的 Result 失败时仍可能 HTTP 200，必须判断 success）
+    const handleDelete = async (productId: string | number) => {
         try {
             const response = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(productId)}`, {
                 method: 'DELETE'
             });
-            const result = await response.json();
-            if (response.ok) {
-                message.success('商品删除成功');
-                loadProducts();
-                loadStatistics();
-            } else {
-                message.error(result.message || '删除失败');
+            let result: { success?: boolean; message?: string } = {};
+            try {
+                result = (await response.json()) as { success?: boolean; message?: string };
+            } catch {
+                message.error('删除接口返回非 JSON，无法解析');
+                return;
             }
+            if (!response.ok) {
+                message.error(result.message || `删除失败（${response.status}）`);
+                return;
+            }
+            if (result.success === false) {
+                message.error(result.message || '删除失败');
+                return;
+            }
+            try {
+                localStorage.removeItem(`product_default_loc:${String(productId)}`);
+            } catch {
+                /* 忽略本地偏好清理失败 */
+            }
+            message.success(result.message || '商品删除成功');
+            loadProducts();
+            loadStatistics();
         } catch (error) {
             message.error('删除商品失败: ' + (error as Error).message);
         }
     };
 
     // 打开入库/出库模态框
-    const openStockModal = async (productId: string, type: StockType) => {
+    const openStockModal = async (productId: string | number, type: StockType) => {
         try {
-            // const response = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(productId)}`);
-            // if (!response.ok) {
-            //     message.error('获取商品信息失败');
-            //     return;
-            // }
-            // const product = await response.json();
-            const product = mockGetProductsById(productId) as ProductItem; // 使用mock数据
-            setCurrentProductId(productId);
+            const response = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(String(productId))}`);
+            if (!response.ok) {
+                message.error('获取商品信息失败');
+                return;
+            }
+            const product = (await response.json()) as ProductItem;
+            setCurrentProductId(String(productId));
             setCurrentStockType(type);
             setCurrentProduct(product);
             stockForm.resetFields();
@@ -243,7 +264,7 @@ function ProductManagement() {
             const response = await authFetch(`${API_BASE}/${endpoint}`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    id: currentProductId,
+                    id: currentProductId != null ? Number(currentProductId) : null,
                     amount: values.amount
                 })
             });
@@ -261,9 +282,18 @@ function ProductManagement() {
         }
     };
 
-    // 搜索商品
+    // 搜索商品：仅此时把输入同步为已应用条件并请求接口
     const handleSearch = () => {
-        loadProducts();
+        const kw = searchInput.trim();
+        setAppliedSearch(kw);
+        void loadProducts(kw);
+    };
+
+    // 重置：清空名称条件，重新请求全量列表
+    const handleReset = () => {
+        setSearchInput('');
+        setAppliedSearch('');
+        void loadProducts('');
     };
 
     const openInventory = (record: ProductItem) => {
@@ -273,16 +303,7 @@ function ProductManagement() {
 
     const handleInventoryAdjust = (values: unknown) => {
         console.log('库存调整', values);
-        message.success('已模拟调整库存');
     };
-
-    const filteredProducts = useMemo<ProductItem[]>(() => {
-        return products.filter((item) => {
-            const matchKeyword =
-                !searchKeyword || (item.name || '').toLowerCase().includes(searchKeyword.toLowerCase());
-            return matchKeyword;
-        });
-    }, [products, searchKeyword]);
 
     // 表格列定义
     const columns: ColumnsType<ProductItem> = [
@@ -307,6 +328,18 @@ function ProductManagement() {
             width: 150,
             align: 'center',
             render: (category: string) => <Tag color="blue">{category}</Tag>,
+        },
+        {
+            title: '状态',
+            dataIndex: 'status',
+            key: 'status',
+            width: 90,
+            align: 'center',
+            render: (status: number | undefined) => (
+                <Tag color={(status ?? 1) === 1 ? 'green' : 'default'}>
+                    {(status ?? 1) === 1 ? '上架' : '下架'}
+                </Tag>
+            ),
         },
         {
             title: '价格',
@@ -357,6 +390,11 @@ function ProductManagement() {
                     {canDelete && (
                         <Popconfirm
                             title="确定要删除这个商品吗？"
+                            description={
+                                (record.quantity ?? 0) > 0
+                                    ? '当前商品仍有库存数量，确认后将自动清除各仓库库存明细、库存流水并删除商品主数据，操作不可恢复。'
+                                    : '删除后不可恢复。'
+                            }
                             onConfirm={() => handleDelete(record.id)}
                             okText="确定"
                             cancelText="取消"
@@ -402,45 +440,17 @@ function ProductManagement() {
                     <Space>
                         <Input
                             placeholder="搜索商品名称..."
-                            value={searchKeyword}
-                            onChange={(e) => setSearchKeyword(e.target.value)}
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
                             onPressEnter={handleSearch}
                             style={{ width: 200 }}
                             allowClear
                         />
-                        <Select
-                            allowClear
-                            placeholder="选择仓库（可选）"
-                            style={{ width: 180 }}
-                            value={warehouseFilter}
-                            options={storeList.map(item => ({
-                                label: item.name,
-                                value: item.id,
-                                disabled: item.status !== '1'
-                            }))}
-                            onChange={(val: number | undefined) => {
-                                setWarehouseFilter(val || null);
-                                setPositionFilter(null);
-                            }}
-                        />
-                        <TreeSelect
-                            allowClear
-                            placeholder="选择仓位（可选）"
-                            style={{ width: 220 }}
-                            disabled={!warehouseFilter}
-                            value={positionFilter ?? undefined}
-                            onChange={(val: number | undefined) => setPositionFilter(val || null)}
-                            treeData={positionTreeData}
-                            treeDefaultExpandAll
-                            fieldNames={{
-                                label: 'title',
-                                value: 'id',
-                                children: 'children'
-                            }}
-                        />
-                        
                         <Button type="primary" onClick={handleSearch}>
                             搜索
+                        </Button>
+                        <Button onClick={handleReset}>
+                            重置
                         </Button>
                     </Space>
                     <Space>
@@ -467,7 +477,7 @@ function ProductManagement() {
 
                 <Table
                     columns={columns}
-                    dataSource={filteredProducts}
+                    dataSource={products}
                     rowKey="id"
                     loading={loading}
                     pagination={{
@@ -482,14 +492,19 @@ function ProductManagement() {
             <AddProductModal
                 currentProductId={currentProductId ?? undefined}
                 visible={productModalVisible}
-                warehouseList={storeList}
-                positionTree={positionList}
+                warehouseList={warehouseOptions as unknown as import('../types/inventory').StoreItem[]}
+                positionTree={positionOptions as unknown as import('../types/inventory').PositionItem[]}
                 onClose={
                     () => {
                         setProductModalVisible(false);
+                        setCurrentProductId(null);
                         productForm.resetFields();
                     }
                 }
+                onSuccess={() => {
+                    loadProducts();
+                    loadStatistics();
+                }}
             ></AddProductModal>
 
             {/* 入库/出库模态框 */}
@@ -517,6 +532,15 @@ function ProductManagement() {
             <LowStockModal
                 visible={lowStockModalVisible}
                 onClose={() => setLowStockModalVisible(false)}
+                onOpenStockIn={async (record) => {
+                    setLowStockModalVisible(false);
+                    await openStockModal(record.id, 'in');
+                }}
+                onOpenInventory={(record) => {
+                    setLowStockModalVisible(false);
+                    setInventoryProduct(record);
+                    setInventoryDrawerVisible(true);
+                }}
             />
 
             {/* 库存抽屉 */}
@@ -524,8 +548,8 @@ function ProductManagement() {
                 visible={inventoryDrawerVisible}
                 onClose={() => setInventoryDrawerVisible(false)}
                 product={inventoryProduct}
-                warehouseList={storeList}
-                positionList={positionList}
+                warehouseList={warehouseOptions as unknown as import('../types/inventory').StoreItem[]}
+                positionList={positionOptions as unknown as import('../types/inventory').PositionItem[]}
                 onAdjust={handleInventoryAdjust}
             />
         </div>

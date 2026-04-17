@@ -20,4 +20,41 @@
         FROM position WHERE id = #{id}
     </select>
 
+    <select id="findByCodeInWarehouse" resultType="com.stock.entity.Position">
+        SELECT id, warehouse_id, parent_id, code, name, type, status, max_capacity, unit
+        FROM position
+        WHERE warehouse_id = #{warehouseId} AND code = #{code}
+        LIMIT 1
+    </select>
+
+    <select id="findChildrenByParentId" resultType="com.stock.entity.Position">
+        SELECT id, warehouse_id, parent_id, code, name, type, status, max_capacity, unit
+        FROM position
+        WHERE parent_id = #{parentId}
+    </select>
+
+    <insert id="insert" parameterType="com.stock.entity.Position" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO position (warehouse_id, parent_id, code, name, type, status, max_capacity, unit)
+        VALUES (#{warehouseId}, #{parentId}, #{code}, #{name}, #{type}, #{status}, #{maxCapacity}, #{unit})
+    </insert>
+
+    <update id="update" parameterType="com.stock.entity.Position">
+        UPDATE position
+        <set>
+            <if test="warehouseId != null">warehouse_id = #{warehouseId},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="code != null">code = #{code},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="type != null">type = #{type},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="maxCapacity != null">max_capacity = #{maxCapacity},</if>
+            <if test="unit != null">unit = #{unit},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM position WHERE id = #{id}
+    </delete>
+
 </mapper>

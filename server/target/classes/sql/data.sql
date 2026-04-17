@@ -84,12 +84,12 @@ INSERT IGNORE INTO sys_role_permission (role_id, permission_id) VALUES
 INSERT IGNORE INTO sys_role_permission (role_id, permission_id) VALUES
   (3, 1), (3, 5), (3, 8), (3, 9), (3,10), (3,11), (3,12), (3,13);
 
--- 示例商品
-INSERT IGNORE INTO product (id, name, price, quantity, category) VALUES
-  ('P001', '笔记本电脑', 5999.00, 50, '电子产品'),
-  ('P002', '无线鼠标',   99.00,  200, '电子产品'),
-  ('P003', '办公椅',     399.00,  30, '家具'),
-  ('P004', 'A4打印纸',   25.00,  500, '办公用品');
+-- 示例商品（id 由数据库自增；按名称去重可重复执行）
+INSERT IGNORE INTO product (name, price, quantity, category) VALUES
+  ('笔记本电脑', 5999.00, 50, '电子产品'),
+  ('无线鼠标',   99.00,  200, '电子产品'),
+  ('办公椅',     399.00,  30, '家具'),
+  ('A4打印纸',   25.00,  500, '办公用品');
 
 -- 示例仓库
 INSERT IGNORE INTO warehouse (id, code, name, status, address, contact, phone) VALUES

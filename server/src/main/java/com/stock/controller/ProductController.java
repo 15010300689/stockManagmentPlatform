@@ -38,10 +38,10 @@ public class ProductController {
     }
 
     /**
-     * GET /api/product?id=xxx
+     * GET /api/product?id=数字
      */
     @GetMapping("/product")
-    public Object getProduct(@RequestParam String id) {
+    public Object getProduct(@RequestParam Long id) {
         Product product = productService.findById(id);
         if (product == null) {
             return Result.error("商品不存在");
@@ -50,33 +50,40 @@ public class ProductController {
     }
 
     /**
-     * POST /api/products -- 新增商品
+     * POST /api/products -- 新增商品（id 由数据库生成，请求体勿传 id）
      */
     @PostMapping("/products")
     public Result addProduct(@RequestBody Product product) {
-        if (productService.addProduct(product)) {
-            return Result.ok("商品添加成功");
+        product.setQuantity(0);
+        try {
+            Product saved = productService.addProduct(product);
+            return Result.ok("商品添加成功", saved);
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
         }
-        return Result.error("添加失败，请检查商品信息");
     }
 
     /**
      * PUT /api/product?id=xxx -- 更新商品
      */
     @PutMapping("/product")
-    public Result updateProduct(@RequestParam String id, @RequestBody Product product) {
+    public Result updateProduct(@RequestParam Long id, @RequestBody Product product) {
         product.setId(id);
-        if (productService.updateProduct(product)) {
-            return Result.ok("商品更新成功");
+        try {
+            if (productService.updateProduct(product)) {
+                return Result.ok("商品更新成功");
+            }
+            return Result.error("更新失败，商品可能不存在");
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
         }
-        return Result.error("更新失败");
     }
 
     /**
      * DELETE /api/product?id=xxx -- 删除商品
      */
     @DeleteMapping("/product")
-    public Result deleteProduct(@RequestParam String id) {
+    public Result deleteProduct(@RequestParam Long id) {
         if (productService.deleteProduct(id)) {
             return Result.ok("商品删除成功");
         }
@@ -88,6 +95,9 @@ public class ProductController {
      */
     @PostMapping("/stock-in")
     public Result stockIn(@RequestBody StockRequest req) {
+        if (req.getId() == null) {
+            return Result.error("缺少商品 id");
+        }
         if (productService.stockIn(req.getId(), req.getAmount())) {
             return Result.ok("入库成功");
         }
@@ -99,6 +109,9 @@ public class ProductController {
      */
     @PostMapping("/stock-out")
     public Result stockOut(@RequestBody StockRequest req) {
+        if (req.getId() == null) {
+            return Result.error("缺少商品 id");
+        }
         if (productService.stockOut(req.getId(), req.getAmount())) {
             return Result.ok("出库成功");
         }

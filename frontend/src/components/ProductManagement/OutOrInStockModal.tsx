@@ -39,7 +39,7 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
         try {
             const response = await authFetch(`${API_BASE}/${endpoint}`, {
                 method: 'POST',
-                body: JSON.stringify({ id: currentProduct.id, amount: values.amount }),
+                body: JSON.stringify({ id: Number(currentProduct.id), amount: values.amount }),
             });
             const result = await response.json();
             if (response.ok) {

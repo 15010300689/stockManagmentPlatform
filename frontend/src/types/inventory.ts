@@ -1,11 +1,14 @@
 export interface ProductItem {
-  id: string;
+  /** 后端为 BIGINT 自增，JSON 常为 number */
+  id: string | number;
   name: string;
   category: string;
   totalValue?: number;
   quantity: number;
   price: number;
   lowStockThreshold?: number;
+  /** 后端商品安全库存（可选） */
+  safeStock?: number;
 }
 
 export interface StoreItem {

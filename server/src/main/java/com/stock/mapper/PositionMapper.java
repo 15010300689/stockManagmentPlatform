@@ -11,4 +11,14 @@ public interface PositionMapper {
     List<Position> findAll();
 
     Position findById(@Param("id") Integer id);
+
+    Position findByCodeInWarehouse(@Param("warehouseId") Integer warehouseId, @Param("code") String code);
+
+    List<Position> findChildrenByParentId(@Param("parentId") Integer parentId);
+
+    int insert(Position position);
+
+    int update(Position position);
+
+    int deleteById(@Param("id") Integer id);
 }

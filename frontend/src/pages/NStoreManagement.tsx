@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, Space, Button, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import QueryForm from '../components/StoreManagement/QueryForm';
 import DataList from '../components/StoreManagement/DataList';
 import AddStoreModal from '../components/StoreManagement/AddStoreModal';
+import { authFetch } from '../auth';
 import { storeList } from '../mock/storeList';
 import type { StoreItem } from '../types/inventory';
 
@@ -18,6 +19,69 @@ interface QueryValues {
     status?: string;
 }
 
+const API_BASE = '/api';
+
+const fallbackStores = [...storeList];
+
+interface StoreResponseItem {
+    id?: number | string;
+    code?: string;
+    name?: string;
+    address?: string;
+    contact?: string;
+    phone?: string;
+    status?: string | number;
+    createTime?: string;
+    create_time?: string;
+}
+
+function shouldFallbackByStatus(status: number): boolean {
+    return status === 404 || status === 405 || status >= 500;
+}
+
+async function getErrorMessage(response: Response): Promise<string> {
+    try {
+        const payload = await response.json();
+        if (typeof payload?.message === 'string' && payload.message.trim()) {
+            return payload.message;
+        }
+    } catch {
+        // ignore json parse errors
+    }
+    return `请求失败(${response.status})`;
+}
+
+function mapStoreItem(item: StoreResponseItem): StoreItem | null {
+    if (item.id === undefined || item.id === null || !item.code || !item.name) {
+        return null;
+    }
+    return {
+        id: Number(item.id),
+        code: String(item.code),
+        name: String(item.name),
+        address: item.address ? String(item.address) : '',
+        contact: item.contact ? String(item.contact) : '',
+        phone: item.phone ? String(item.phone) : '',
+        status: String(item.status ?? '1'),
+        createTime: item.createTime ?? item.create_time,
+    };
+}
+
+function formatDateTime(value?: string): string {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    const pad = (num: number) => String(num).padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hour = pad(date.getHours());
+    const minute = pad(date.getMinutes());
+    const second = pad(date.getSeconds());
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
 function StoreManagement(): JSX.Element {
     const navigate = useNavigate();
     const [queryParams, setQueryParams] = useState<QueryParams>({
@@ -28,16 +92,55 @@ function StoreManagement(): JSX.Element {
     const [mode, setMode] = useState<'add' | 'edit'>('add');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [currentStoreInfo, setCurrentStoreInfo] = useState<Partial<StoreItem>>({});
-    const [dataSource, setDataSource] = useState<StoreItem[]>(storeList);
+    const [dataSource, setDataSource] = useState<StoreItem[]>(fallbackStores);
+    const [loading, setLoading] = useState(false);
+
+    const requestTableData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const response = await authFetch(`${API_BASE}/stores`);
+            if (!response.ok) {
+                throw new Error(`请求失败(${response.status})`);
+            }
+            const payload = await response.json();
+            const rawList = Array.isArray(payload)
+                ? payload
+                : Array.isArray(payload?.data)
+                    ? payload.data
+                    : null;
+            if (!rawList) {
+                throw new Error('接口返回格式不正确');
+            }
+
+            const normalized = rawList
+                .map((item: StoreResponseItem) => mapStoreItem(item))
+                .filter((item: StoreItem | null): item is StoreItem => Boolean(item));
+
+            setDataSource(normalized);
+        } catch (error) {
+            setDataSource(fallbackStores);
+            message.warning('后端服务异常，已切换为 mock 数据展示');
+            console.warn('load stores failed, fallback to mock data:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void requestTableData();
+    }, [requestTableData]);
 
     // 过滤数据
-    const filteredData = dataSource.filter(item => {
-        const matchKeyword = !queryParams.keyword ||
-            item.code.toLowerCase().includes(queryParams.keyword.toLowerCase()) ||
-            item.name.toLowerCase().includes(queryParams.keyword.toLowerCase());
-        const matchStatus = !queryParams.status || item.status === queryParams.status;
-        return matchKeyword && matchStatus;
-    });
+    const filteredData = useMemo(
+        () => dataSource.filter(item => {
+            const matchKeyword = !queryParams.keyword ||
+                item.code.toLowerCase().includes(queryParams.keyword.toLowerCase()) ||
+                item.name.toLowerCase().includes(queryParams.keyword.toLowerCase());
+            const matchStatus = !queryParams.status || item.status === queryParams.status;
+            return matchKeyword && matchStatus;
+        }),
+        [dataSource, queryParams.keyword, queryParams.status]
+    );
 
     const columns: ColumnsType<StoreItem> = [
         {
@@ -89,6 +192,9 @@ function StoreManagement(): JSX.Element {
             dataIndex: 'createTime',
             key: 'createTime',
             align: 'center',
+            render: (createTime?: string) => (
+                <span>{formatDateTime(createTime)}</span>
+            )
         },
         {
             title: '操作',
@@ -145,9 +251,33 @@ function StoreManagement(): JSX.Element {
         setIsAddModalOpen(true);
     };
 
-    const onDeleteStore = (_record: StoreItem) => {
-        // TODO: 实现删除逻辑
-        message.info('删除功能待实现');
+    const onDeleteStore = async (record: StoreItem) => {
+        try {
+            setLoading(true);
+            const response = await authFetch(`${API_BASE}/stores/${record.id}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                if (shouldFallbackByStatus(response.status)) {
+                    throw new Error(`fallback:${response.status}`);
+                }
+                throw new Error(await getErrorMessage(response));
+            }
+
+            message.success('删除仓库成功');
+            await requestTableData();
+        } catch (error) {
+            const errorMsg = (error as Error).message || '';
+            if (errorMsg.startsWith('fallback:')) {
+                setDataSource((prev) => prev.filter((item) => item.id !== record.id));
+                message.warning('后端删除接口不可用，已切换为 mock 删除');
+                return;
+            }
+            message.error('删除失败: ' + errorMsg);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleView = (record: StoreItem) => {
@@ -157,33 +287,69 @@ function StoreManagement(): JSX.Element {
 
     const handleSubmit = async (values: Partial<StoreItem>, submitMode: 'add' | 'edit') => {
         try {
-            // TODO: 调用API保存数据
+            setLoading(true);
             if (submitMode === 'add') {
-                const newStore: StoreItem = {
-                    id: Date.now(),
-                    code: values.code || '',
-                    name: values.name || '',
-                    address: values.address || '',
-                    contact: values.contact || '',
-                    phone: values.phone || '',
-                    status: values.status || '1',
-                    createTime: new Date().toLocaleDateString()
-                };
-                setDataSource([...dataSource, newStore]);
+                const response = await authFetch(`${API_BASE}/stores`, {
+                    method: 'POST',
+                    body: JSON.stringify(values)
+                });
+                if (!response.ok) {
+                    if (shouldFallbackByStatus(response.status)) {
+                        throw new Error(`fallback:${response.status}`);
+                    }
+                    throw new Error(await getErrorMessage(response));
+                }
+
                 message.success('新增仓库成功');
+                await requestTableData();
             } else {
-                const updatedData = dataSource.map(item =>
-                    item.id === currentStoreInfo.id
-                        ? { ...item, ...values }
-                        : item
-                );
-                setDataSource(updatedData);
+                const response = await authFetch(`${API_BASE}/stores/${currentStoreInfo.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(values)
+                });
+                if (!response.ok) {
+                    if (shouldFallbackByStatus(response.status)) {
+                        throw new Error(`fallback:${response.status}`);
+                    }
+                    throw new Error(await getErrorMessage(response));
+                }
+
                 message.success('编辑仓库成功');
+                await requestTableData();
             }
             setIsAddModalOpen(false);
             setCurrentStoreInfo({});
         } catch (error) {
-            message.error('操作失败: ' + (error as Error).message);
+            const errorMsg = (error as Error).message || '';
+            if (errorMsg.startsWith('fallback:')) {
+                if (submitMode === 'add') {
+                    const newStore: StoreItem = {
+                        id: Date.now(),
+                        code: values.code || '',
+                        name: values.name || '',
+                        address: values.address || '',
+                        contact: values.contact || '',
+                        phone: values.phone || '',
+                        status: values.status || '1',
+                        createTime: formatDateTime(new Date().toISOString())
+                    };
+                    setDataSource((prev) => [...prev, newStore]);
+                    message.warning('后端新增接口不可用，已切换为 mock 新增');
+                } else {
+                    setDataSource((prev) => prev.map(item =>
+                        item.id === currentStoreInfo.id
+                            ? { ...item, ...values }
+                            : item
+                    ));
+                    message.warning('后端编辑接口不可用，已切换为 mock 编辑');
+                }
+                setIsAddModalOpen(false);
+                setCurrentStoreInfo({});
+                return;
+            }
+            message.error('操作失败: ' + errorMsg);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -196,6 +362,7 @@ function StoreManagement(): JSX.Element {
             <DataList
                 columns={columns}
                 dataSource={filteredData}
+                tableProps={{ loading }}
             />
             <AddStoreModal
                 mode={mode}

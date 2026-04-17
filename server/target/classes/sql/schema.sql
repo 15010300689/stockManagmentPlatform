@@ -80,15 +80,16 @@ CREATE TABLE IF NOT EXISTS sys_role_menu (
   INDEX idx_rm_menu (menu_id)
 );
 
--- 商品表
+-- 商品表（id 数据库自增；名称全局唯一）
 CREATE TABLE IF NOT EXISTS product (
-  id        VARCHAR(64) PRIMARY KEY,
+  id        BIGINT PRIMARY KEY AUTO_INCREMENT,
   name      VARCHAR(255) NOT NULL,
   price     DECIMAL(18,2) NOT NULL DEFAULT 0,
   quantity  INT NOT NULL DEFAULT 0,
   category  VARCHAR(255) DEFAULT NULL,
   safe_stock INT DEFAULT NULL,
-  status    TINYINT DEFAULT 1
+  status    TINYINT DEFAULT 1,
+  UNIQUE KEY uk_product_name (name)
 );
 
 -- 仓库表
@@ -99,7 +100,8 @@ CREATE TABLE IF NOT EXISTS warehouse (
   status  CHAR(1) NOT NULL DEFAULT '1',
   address VARCHAR(255),
   contact VARCHAR(64),
-  phone   VARCHAR(64)
+  phone   VARCHAR(64),
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 仓位表
@@ -120,12 +122,13 @@ CREATE TABLE IF NOT EXISTS position (
 
 -- 库存表
 CREATE TABLE IF NOT EXISTS inventory (
-  product_id   VARCHAR(64) NOT NULL,
+  id           BIGINT PRIMARY KEY AUTO_INCREMENT,
+  product_id   BIGINT NOT NULL,
   warehouse_id INT NOT NULL,
   position_id  INT NULL,
   quantity     INT NOT NULL DEFAULT 0,
   update_time  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (product_id, warehouse_id, position_id),
+  INDEX idx_inv_product_wh_pos (product_id, warehouse_id, position_id),
   CONSTRAINT fk_inv_product FOREIGN KEY (product_id) REFERENCES product(id),
   CONSTRAINT fk_inv_wh FOREIGN KEY (warehouse_id) REFERENCES warehouse(id)
 );
@@ -133,7 +136,7 @@ CREATE TABLE IF NOT EXISTS inventory (
 -- 库存流水表
 CREATE TABLE IF NOT EXISTS inventory_log (
   id           BIGINT PRIMARY KEY AUTO_INCREMENT,
-  product_id   VARCHAR(64) NOT NULL,
+  product_id   BIGINT NOT NULL,
   warehouse_id INT NOT NULL,
   position_id  INT NULL,
   type         VARCHAR(16) NOT NULL COMMENT 'in/out',

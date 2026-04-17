@@ -40,4 +40,12 @@
         VALUES (#{productId}, #{warehouseId}, #{positionId}, #{type}, #{amount}, #{remark}, #{operatorId}, NOW())
     </insert>
 
+    <delete id="deleteLogsByProductId">
+        DELETE FROM inventory_log WHERE product_id = #{productId}
+    </delete>
+
+    <delete id="deleteInventoryByProductId">
+        DELETE FROM inventory WHERE product_id = #{productId}
+    </delete>
+
 </mapper>

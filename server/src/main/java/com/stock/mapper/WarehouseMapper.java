@@ -9,4 +9,12 @@ public interface WarehouseMapper {
     List<Warehouse> findAll();
 
     Warehouse findById(@Param("id") Integer id);
+
+    Warehouse findByCode(@Param("code") String code);
+
+    int insert(Warehouse warehouse);
+
+    int update(Warehouse warehouse);
+
+    int deleteById(@Param("id") Integer id);
 }

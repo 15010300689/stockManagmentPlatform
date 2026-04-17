@@ -7,21 +7,27 @@ import java.util.List;
 
 public interface InventoryMapper {
 
-    List<Inventory> findByProductId(@Param("productId") String productId);
+    List<Inventory> findByProductId(@Param("productId") Long productId);
 
-    List<Inventory> findByProductAndWarehouse(@Param("productId") String productId,
+    List<Inventory> findByProductAndWarehouse(@Param("productId") Long productId,
                                               @Param("warehouseId") Integer warehouseId);
 
-    Inventory findOne(@Param("productId") String productId,
+    Inventory findOne(@Param("productId") Long productId,
                       @Param("warehouseId") Integer warehouseId,
                       @Param("positionId") Integer positionId);
 
     int insert(Inventory inventory);
 
-    int updateQuantity(@Param("productId") String productId,
+    int updateQuantity(@Param("productId") Long productId,
                        @Param("warehouseId") Integer warehouseId,
                        @Param("positionId") Integer positionId,
                        @Param("quantity") int quantity);
 
     int insertLog(InventoryLog log);
+
+    /** 删除某商品全部库存流水 */
+    int deleteLogsByProductId(@Param("productId") Long productId);
+
+    /** 删除某商品全部库存行 */
+    int deleteInventoryByProductId(@Param("productId") Long productId);
 }

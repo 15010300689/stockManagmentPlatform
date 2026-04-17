@@ -4,26 +4,36 @@
 <mapper namespace="com.stock.mapper.ProductMapper">
 
     <select id="findAll" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category FROM product ORDER BY id
+        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product ORDER BY id
     </select>
 
     <select id="findByName" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category FROM product
+        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product
         WHERE name LIKE CONCAT('%', #{name}, '%')
     </select>
 
     <select id="findByCategory" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category FROM product
+        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product
         WHERE category = #{category}
     </select>
 
     <select id="findById" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category FROM product WHERE id = #{id}
+        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product WHERE id = #{id}
     </select>
 
-    <insert id="insert">
-        INSERT INTO product (id, name, price, quantity, category)
-        VALUES (#{id}, #{name}, #{price}, #{quantity}, #{category})
+    <select id="findByExactName" resultType="com.stock.entity.Product">
+        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product
+        WHERE name = #{name}
+        LIMIT 1
+    </select>
+
+    <select id="countByNameExceptId" resultType="int">
+        SELECT COUNT(*) FROM product WHERE name = #{name} AND id != #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO product (name, price, quantity, category, safe_stock, status)
+        VALUES (#{name}, #{price}, #{quantity}, #{category}, #{safeStock}, #{status})
     </insert>
 
     <update id="update">
@@ -33,6 +43,8 @@
             <if test="price != null">price = #{price},</if>
             <if test="quantity != null">quantity = #{quantity},</if>
             <if test="category != null">category = #{category},</if>
+            <if test="safeStock != null">safe_stock = #{safeStock},</if>
+            <if test="status != null">status = #{status},</if>
         </set>
         WHERE id = #{id}
     </update>
@@ -62,9 +74,11 @@
         SELECT DISTINCT category FROM product WHERE category IS NOT NULL
     </select>
 
+    <!-- 低库存：有安全库存则以安全库存为界；未设置安全库存时用接口传入的全局阈值 -->
     <select id="findLowStock" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category FROM product
-        WHERE quantity &lt; #{threshold}
+        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product
+        WHERE (safe_stock IS NOT NULL AND quantity &lt; safe_stock)
+           OR (safe_stock IS NULL AND quantity &lt; #{threshold})
         ORDER BY quantity ASC
     </select>
 

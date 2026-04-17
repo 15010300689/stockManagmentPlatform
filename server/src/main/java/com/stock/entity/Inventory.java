@@ -4,7 +4,7 @@ import java.util.Date;
 
 public class Inventory {
     private Long id;
-    private String productId;
+    private Long productId;
     private Integer warehouseId;
     private Integer positionId;
     private Integer quantity;
@@ -12,8 +12,8 @@ public class Inventory {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public String getProductId() { return productId; }
-    public void setProductId(String productId) { this.productId = productId; }
+    public Long getProductId() { return productId; }
+    public void setProductId(Long productId) { this.productId = productId; }
     public Integer getWarehouseId() { return warehouseId; }
     public void setWarehouseId(Integer warehouseId) { this.warehouseId = warehouseId; }
     public Integer getPositionId() { return positionId; }
