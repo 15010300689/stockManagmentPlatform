@@ -9,6 +9,13 @@ public interface ProductMapper {
 
     List<Product> findAll();
 
+    List<Product> findPage(@Param("name") String name,
+                           @Param("category") String category,
+                           @Param("offset") int offset,
+                           @Param("limit") int limit);
+
+    int countByCondition(@Param("name") String name, @Param("category") String category);
+
     List<Product> findByName(@Param("name") String name);
 
     List<Product> findByCategory(@Param("category") String category);

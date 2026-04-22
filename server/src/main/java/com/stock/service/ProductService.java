@@ -22,6 +22,26 @@ public class ProductService {
         return productMapper.findAll();
     }
 
+    public Map<String, Object> getProductsByPage(String name, String category, Integer pageNo, Integer pageSize) {
+        int safePageNo = (pageNo == null || pageNo < 1) ? 1 : pageNo;
+        int safePageSize = (pageSize == null || pageSize < 1) ? 10 : Math.min(pageSize, 100);
+        String safeName = name == null ? null : name.trim();
+        String safeCategory = category == null ? null : category.trim();
+        int offset = (safePageNo - 1) * safePageSize;
+
+        int total = productMapper.countByCondition(safeName, safeCategory);
+        List<Product> list = total <= 0
+                ? Collections.emptyList()
+                : productMapper.findPage(safeName, safeCategory, offset, safePageSize);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("data", list);
+        result.put("total", total);
+        result.put("pageNo", safePageNo);
+        result.put("pageSize", safePageSize);
+        return result;
+    }
+
     public List<Product> findByName(String name) {
         return productMapper.findByName(name);
     }

@@ -21,20 +21,15 @@ public class ProductController {
     private ProductService productService;
 
     /**
-     * GET /api/products          -- 全部商品
-     * GET /api/products?name=xxx -- 按名称搜索
-     * GET /api/products?category=xxx -- 按类别搜索
+     * GET /api/products?pageNo=1&pageSize=10
+     * 支持 name/category 条件分页查询
      */
     @GetMapping("/products")
-    public List<Product> listProducts(@RequestParam(required = false) String name,
-                                      @RequestParam(required = false) String category) {
-        if (name != null && !name.isEmpty()) {
-            return productService.findByName(name);
-        }
-        if (category != null && !category.isEmpty()) {
-            return productService.findByCategory(category);
-        }
-        return productService.getAllProducts();
+    public Map<String, Object> listProducts(@RequestParam(required = false) String name,
+                                            @RequestParam(required = false) String category,
+                                            @RequestParam(defaultValue = "1") Integer pageNo,
+                                            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return productService.getProductsByPage(name, category, pageNo, pageSize);
     }
 
     /**

@@ -10,8 +10,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 /**
  * 仓库、仓位及库存控制器
  */
@@ -26,8 +24,14 @@ public class InventoryController {
      * GET /api/stores -- 仓库列表
      */
     @GetMapping("/stores")
-    public List<Warehouse> listStores() {
-        return inventoryService.getStores();
+    public Object listStores(@RequestParam(required = false) String keyword,
+                             @RequestParam(required = false) String status,
+                             @RequestParam(required = false) Integer pageNo,
+                             @RequestParam(required = false) Integer pageSize) {
+        if (pageNo == null || pageSize == null) {
+            return inventoryService.getStores();
+        }
+        return inventoryService.getStoresByPage(keyword, status, pageNo, pageSize);
     }
 
     /**
@@ -67,8 +71,16 @@ public class InventoryController {
      * GET /api/positions?warehouseId=1
      */
     @GetMapping("/positions")
-    public List<Position> listPositions(@RequestParam(required = false) Integer warehouseId) {
-        return inventoryService.getPositions(warehouseId);
+    public Object listPositions(@RequestParam(required = false) Integer warehouseId,
+                                @RequestParam(required = false) String code,
+                                @RequestParam(required = false) String type,
+                                @RequestParam(required = false) String status,
+                                @RequestParam(required = false) Integer pageNo,
+                                @RequestParam(required = false) Integer pageSize) {
+        if (pageNo == null || pageSize == null) {
+            return inventoryService.getPositions(warehouseId);
+        }
+        return inventoryService.getPositionsByPage(warehouseId, code, type, status, pageNo, pageSize);
     }
 
     /**

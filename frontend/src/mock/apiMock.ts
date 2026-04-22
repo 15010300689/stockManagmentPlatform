@@ -3,6 +3,7 @@ import { mockProducts } from './productManagement';
 import { roleList } from './roleList';
 import { storeList } from './storeList';
 import { positionList } from './positionList';
+import { userList } from './userList';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -39,6 +40,12 @@ const roleDb = roleList.map((r) => ({
     createTime: r.createTime,
     roleMap: r.roleMap,
     desc: r.desc,
+}));
+const userDb = userList.map((u) => ({
+    id: u.id,
+    userName: u.userName,
+    createTime: u.createTime,
+    roleList: u.roleList
 }));
 
 const permissionDb: PermissionRecord[] = [
@@ -227,10 +234,19 @@ export async function mockApiFetch(url: string, options: RequestInit = {}): Prom
 
     if (pathname === '/api/products' && method === 'GET') {
         const name = (parsedUrl.searchParams.get('name') || '').toLowerCase();
+        const pageNo = Math.max(Number(parsedUrl.searchParams.get('pageNo') || 1), 1);
+        const pageSize = Math.max(Number(parsedUrl.searchParams.get('pageSize') || 10), 1);
         const list = name
             ? productDb.filter((p) => p.name.toLowerCase().includes(name))
             : productDb;
-        return jsonResponse(list);
+        const start = (pageNo - 1) * pageSize;
+        const end = start + pageSize;
+        return jsonResponse({
+            data: list.slice(start, end),
+            total: list.length,
+            pageNo,
+            pageSize
+        });
     }
 
     if (pathname === '/api/products' && method === 'POST') {
@@ -402,15 +418,97 @@ export async function mockApiFetch(url: string, options: RequestInit = {}): Prom
     }
 
     if (pathname === '/api/roles' && method === 'GET') {
-        return jsonResponse({ data: roleList, total: roleList.length });
+        const roleName = (parsedUrl.searchParams.get('roleName') || '').toLowerCase();
+        const pageNo = Math.max(Number(parsedUrl.searchParams.get('pageNo') || 1), 1);
+        const pageSize = Math.max(Number(parsedUrl.searchParams.get('pageSize') || 10), 1);
+        const filtered = roleDb.filter((item) => (
+            !roleName || item.roleName.toLowerCase().includes(roleName)
+        ));
+        const start = (pageNo - 1) * pageSize;
+        const end = start + pageSize;
+        return jsonResponse({
+            data: filtered.slice(start, end),
+            total: filtered.length,
+            pageNo,
+            pageSize
+        });
+    }
+
+    if (pathname === '/api/users' && method === 'GET') {
+        const userName = (parsedUrl.searchParams.get('userName') || '').toLowerCase();
+        const pageNo = Math.max(Number(parsedUrl.searchParams.get('pageNo') || 1), 1);
+        const pageSize = Math.max(Number(parsedUrl.searchParams.get('pageSize') || 10), 1);
+        const filtered = userDb.filter((item) => (
+            !userName || item.userName.toLowerCase().includes(userName)
+        ));
+        const start = (pageNo - 1) * pageSize;
+        const end = start + pageSize;
+        return jsonResponse({
+            data: filtered.slice(start, end),
+            total: filtered.length,
+            pageNo,
+            pageSize
+        });
     }
 
     if (pathname === '/api/stores' && method === 'GET') {
-        return jsonResponse({ data: storeDb, total: storeDb.length });
+        const keyword = (parsedUrl.searchParams.get('keyword') || '').toLowerCase();
+        const status = parsedUrl.searchParams.get('status') || '';
+        const pageNo = parsedUrl.searchParams.get('pageNo');
+        const pageSize = parsedUrl.searchParams.get('pageSize');
+        const filtered = storeDb.filter((item) => {
+            const matchKeyword = !keyword
+                || item.code.toLowerCase().includes(keyword)
+                || item.name.toLowerCase().includes(keyword);
+            const matchStatus = !status || String(item.status) === status;
+            return matchKeyword && matchStatus;
+        });
+
+        if (!pageNo || !pageSize) {
+            return jsonResponse({ data: filtered, total: filtered.length });
+        }
+
+        const safePageNo = Math.max(Number(pageNo), 1);
+        const safePageSize = Math.max(Number(pageSize), 1);
+        const start = (safePageNo - 1) * safePageSize;
+        const end = start + safePageSize;
+        return jsonResponse({
+            data: filtered.slice(start, end),
+            total: filtered.length,
+            pageNo: safePageNo,
+            pageSize: safePageSize
+        });
     }
 
     if (pathname === '/api/positions' && method === 'GET') {
-        return jsonResponse({ data: positionDb, total: positionDb.length });
+        const warehouseId = parsedUrl.searchParams.get('warehouseId');
+        const code = (parsedUrl.searchParams.get('code') || '').toLowerCase();
+        const type = parsedUrl.searchParams.get('type') || '';
+        const status = parsedUrl.searchParams.get('status') || '';
+        const pageNo = parsedUrl.searchParams.get('pageNo');
+        const pageSize = parsedUrl.searchParams.get('pageSize');
+        const filtered = positionDb.filter((item) => {
+            const matchWarehouse = !warehouseId || String(item.warehouseId) === warehouseId;
+            const matchCode = !code || item.code.toLowerCase().includes(code);
+            const matchType = !type || String(item.type) === type;
+            const matchStatus = !status || String(item.status) === status;
+            return matchWarehouse && matchCode && matchType && matchStatus;
+        });
+
+        if (!pageNo || !pageSize) {
+            return jsonResponse({ data: filtered, total: filtered.length });
+        }
+
+        const safePageNo = Math.max(Number(pageNo), 1);
+        const safePageSize = Math.max(Number(pageSize), 1);
+        const start = (safePageNo - 1) * safePageSize;
+        const end = start + safePageSize;
+        return jsonResponse({
+            data: filtered.slice(start, end),
+            total: filtered.length,
+            pageNo: safePageNo,
+            pageSize: safePageSize
+        });
     }
 
     return null;

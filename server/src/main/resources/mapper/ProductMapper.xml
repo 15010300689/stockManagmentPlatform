@@ -3,26 +3,55 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.stock.mapper.ProductMapper">
 
+    <sql id="ProductBaseColumns">
+        id, name, price, quantity, category, safe_stock AS safeStock, status
+    </sql>
+
+    <sql id="ProductFilterWhere">
+        <where>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+        </where>
+    </sql>
+
     <select id="findAll" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product ORDER BY id
+        SELECT <include refid="ProductBaseColumns" /> FROM product ORDER BY id
+    </select>
+
+    <select id="findPage" resultType="com.stock.entity.Product">
+        SELECT <include refid="ProductBaseColumns" />
+        FROM product
+        <include refid="ProductFilterWhere" />
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByCondition" resultType="int">
+        SELECT COUNT(*)
+        FROM product
+        <include refid="ProductFilterWhere" />
     </select>
 
     <select id="findByName" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product
+        SELECT <include refid="ProductBaseColumns" /> FROM product
         WHERE name LIKE CONCAT('%', #{name}, '%')
     </select>
 
     <select id="findByCategory" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product
+        SELECT <include refid="ProductBaseColumns" /> FROM product
         WHERE category = #{category}
     </select>
 
     <select id="findById" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product WHERE id = #{id}
+        SELECT <include refid="ProductBaseColumns" /> FROM product WHERE id = #{id}
     </select>
 
     <select id="findByExactName" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product
+        SELECT <include refid="ProductBaseColumns" /> FROM product
         WHERE name = #{name}
         LIMIT 1
     </select>
@@ -76,7 +105,7 @@
 
     <!-- 低库存：有安全库存则以安全库存为界；未设置安全库存时用接口传入的全局阈值 -->
     <select id="findLowStock" resultType="com.stock.entity.Product">
-        SELECT id, name, price, quantity, category, safe_stock AS safeStock, status FROM product
+        SELECT <include refid="ProductBaseColumns" /> FROM product
         WHERE (safe_stock IS NOT NULL AND quantity &lt; safe_stock)
            OR (safe_stock IS NULL AND quantity &lt; #{threshold})
         ORDER BY quantity ASC

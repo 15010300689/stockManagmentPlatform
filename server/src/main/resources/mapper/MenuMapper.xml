@@ -52,6 +52,30 @@
         ORDER BY id
     </select>
 
+    <select id="findRolesByNamePage" resultType="com.stock.entity.Role">
+        SELECT id, role_name, role_code, description, status, create_time
+        FROM sys_role
+        <where>
+            status = 1
+            <if test="roleName != null and roleName != ''">
+                AND role_name LIKE CONCAT('%', #{roleName}, '%')
+            </if>
+        </where>
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countRolesByName" resultType="int">
+        SELECT COUNT(*)
+        FROM sys_role
+        <where>
+            status = 1
+            <if test="roleName != null and roleName != ''">
+                AND role_name LIKE CONCAT('%', #{roleName}, '%')
+            </if>
+        </where>
+    </select>
+
     <select id="findMenuIdsByRoleId" resultType="long">
         SELECT menu_id FROM sys_role_menu WHERE role_id = #{roleId}
     </select>

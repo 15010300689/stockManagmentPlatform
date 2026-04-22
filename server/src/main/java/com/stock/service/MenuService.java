@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,25 @@ public class MenuService {
 
     public List<Role> getRoles() {
         return menuMapper.findAllRoles();
+    }
+
+    public Map<String, Object> getRolesByPage(String roleName, Integer pageNo, Integer pageSize) {
+        int safePageNo = (pageNo == null || pageNo < 1) ? 1 : pageNo;
+        int safePageSize = (pageSize == null || pageSize < 1) ? 10 : Math.min(pageSize, 100);
+        String safeRoleName = roleName == null ? null : roleName.trim();
+        int offset = (safePageNo - 1) * safePageSize;
+
+        int total = menuMapper.countRolesByName(safeRoleName);
+        List<Role> list = total <= 0
+                ? Collections.emptyList()
+                : menuMapper.findRolesByNamePage(safeRoleName, offset, safePageSize);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("data", list);
+        result.put("total", total);
+        result.put("pageNo", safePageNo);
+        result.put("pageSize", safePageSize);
+        return result;
     }
 
     public List<Long> getRoleMenuIds(Long roleId) {

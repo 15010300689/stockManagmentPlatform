@@ -65,6 +65,13 @@ interface PositionResponseItem {
     create_time?: string;
 }
 
+interface PositionListResponse {
+    data?: PositionResponseItem[];
+    total?: number;
+    pageNo?: number;
+    pageSize?: number;
+}
+
 interface StoreResponseItem {
     id?: number | string;
     code?: string;
@@ -154,6 +161,9 @@ function PositionManagement(): JSX.Element {
     const [dataSource, setDataSource] = useState<PositionItem[]>(fallbackPositions);
     const [warehouseList, setWarehouseList] = useState<StoreItem[]>(fallbackStores);
     const [loading, setLoading] = useState(false);
+    const [pageNo, setPageNo] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [total, setTotal] = useState(fallbackPositions.length);
 
     const requestStoreData = useCallback(async () => {
         const response = await authFetch(`${API_BASE}/stores`);
@@ -180,13 +190,24 @@ function PositionManagement(): JSX.Element {
         if (queryParams.warehouseId) {
             params.set('warehouseId', queryParams.warehouseId);
         }
+        if (queryParams.code) {
+            params.set('code', queryParams.code);
+        }
+        if (queryParams.type) {
+            params.set('type', queryParams.type);
+        }
+        if (queryParams.status) {
+            params.set('status', queryParams.status);
+        }
+        params.set('pageNo', String(pageNo));
+        params.set('pageSize', String(pageSize));
         const query = params.toString();
         const url = query ? `${API_BASE}/positions?${query}` : `${API_BASE}/positions`;
         const response = await authFetch(url);
         if (!response.ok) {
             throw new Error(`positions:${response.status}`);
         }
-        const payload = await response.json();
+        const payload = (await response.json()) as PositionResponseItem[] | PositionListResponse;
         const rawList = Array.isArray(payload)
             ? payload
             : Array.isArray(payload?.data)
@@ -199,7 +220,14 @@ function PositionManagement(): JSX.Element {
             .map((item: PositionResponseItem) => mapPositionItem(item))
             .filter((item: PositionItem | null): item is PositionItem => Boolean(item));
         setDataSource(normalized);
-    }, [queryParams.warehouseId]);
+        if (Array.isArray(payload)) {
+            setTotal(normalized.length);
+        } else {
+            setTotal(Number(payload.total ?? 0));
+            setPageNo(Number(payload.pageNo ?? pageNo));
+            setPageSize(Number(payload.pageSize ?? pageSize));
+        }
+    }, [pageNo, pageSize, queryParams.code, queryParams.status, queryParams.type, queryParams.warehouseId]);
 
     const requestInitialData = useCallback(async () => {
         setLoading(true);
@@ -208,6 +236,9 @@ function PositionManagement(): JSX.Element {
         } catch (error) {
             setWarehouseList(fallbackStores);
             setDataSource(fallbackPositions);
+            setTotal(fallbackPositions.length);
+            setPageNo(1);
+            setPageSize(10);
             message.warning('后端服务异常，仓位管理已切换为 mock 数据展示');
             console.warn('load positions failed, fallback to mock data:', error);
         } finally {
@@ -223,16 +254,7 @@ function PositionManagement(): JSX.Element {
                 const matchParent = (item.parentId === null && parentId === null) ||
                                    (item.parentId !== null && item.parentId === parentId) ||
                                    (item.parentId !== null && parentId !== null && String(item.parentId) === String(parentId));
-
-                if (!matchParent) return false;
-
-                // 应用筛选条件
-                const matchWarehouse = !queryParams.warehouseId || item.warehouseId === parseInt(queryParams.warehouseId, 10);
-                const matchCode = !queryParams.code || item.code.toLowerCase().includes(queryParams.code.toLowerCase());
-                const matchType = !queryParams.type || item.type === queryParams.type;
-                const matchStatus = !queryParams.status || item.status === queryParams.status;
-
-                return matchWarehouse && matchCode && matchType && matchStatus;
+                return matchParent;
             })
             .map(item => {
                 const typeLabels: Record<string, string> = {
@@ -254,7 +276,7 @@ function PositionManagement(): JSX.Element {
 
     const treeData = useMemo(() => {
         return buildTree(dataSource);
-    }, [dataSource, queryParams]);
+    }, [dataSource]);
 
     const onSearch = (values: Partial<QueryParams>) => {
         setQueryParams({
@@ -263,6 +285,12 @@ function PositionManagement(): JSX.Element {
             type: values.type || '',
             status: values.status || ''
         });
+        setPageNo(1);
+    };
+
+    const onPageChange = (nextPageNo: number, nextPageSize: number) => {
+        setPageNo(nextPageNo);
+        setPageSize(nextPageSize);
     };
 
     const onAddPosition = () => {
@@ -295,6 +323,7 @@ function PositionManagement(): JSX.Element {
             const errorMsg = (error as Error).message || '';
             if (errorMsg.startsWith('fallback:')) {
                 setDataSource((prev) => prev.filter((item) => item.id !== record.id));
+                setTotal((prev) => Math.max(prev - 1, 0));
                 message.warning('后端删除接口不可用，已切换为 mock 删除');
                 return;
             }
@@ -347,6 +376,7 @@ function PositionManagement(): JSX.Element {
                         createTime: new Date().toISOString()
                     };
                     setDataSource((prev) => [...prev, newPosition]);
+                    setTotal((prev) => prev + 1);
                     message.warning('后端新增接口不可用，已切换为 mock 新增');
                 } else {
                     setDataSource((prev) => prev.map(item =>
@@ -392,6 +422,12 @@ function PositionManagement(): JSX.Element {
                 onEdit={onEditPosition}
                 onDelete={onDeletePosition}
                 loading={loading}
+                pagination={{
+                    current: pageNo,
+                    pageSize,
+                    total,
+                    onChange: onPageChange
+                }}
             />
             <AddPositionModal
                 mode={mode}

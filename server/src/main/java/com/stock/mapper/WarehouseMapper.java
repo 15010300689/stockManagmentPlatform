@@ -8,6 +8,13 @@ public interface WarehouseMapper {
 
     List<Warehouse> findAll();
 
+    List<Warehouse> findPageByCondition(@Param("keyword") String keyword,
+                                        @Param("status") String status,
+                                        @Param("offset") int offset,
+                                        @Param("limit") int limit);
+
+    int countByCondition(@Param("keyword") String keyword, @Param("status") String status);
+
     Warehouse findById(@Param("id") Integer id);
 
     Warehouse findByCode(@Param("code") String code);

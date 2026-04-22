@@ -9,6 +9,28 @@
         WHERE username = #{username}
     </select>
 
+    <select id="findUsersByNamePage" resultType="com.stock.entity.User">
+        SELECT id, username, password, real_name, phone, email, status, create_time, update_time
+        FROM sys_user
+        <where>
+            <if test="username != null and username != ''">
+                username LIKE CONCAT('%', #{username}, '%')
+            </if>
+        </where>
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countUsersByName" resultType="int">
+        SELECT COUNT(*)
+        FROM sys_user
+        <where>
+            <if test="username != null and username != ''">
+                username LIKE CONCAT('%', #{username}, '%')
+            </if>
+        </where>
+    </select>
+
     <select id="findRolesByUserId" resultType="com.stock.entity.Role">
         SELECT r.id, r.role_name, r.role_code, r.description, r.status, r.create_time
         FROM sys_role r

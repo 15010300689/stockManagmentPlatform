@@ -41,6 +41,15 @@ interface AuthTreeNode {
 
 const API_BASE = '/api';
 
+interface RoleApiItem {
+    id: number;
+    roleName: string;
+    createTime?: string;
+    roleMap?: string;
+    desc?: string;
+    description?: string;
+}
+
 function RoleManagement(): JSX.Element {
     const [queryParams, setQueryParams] = useState<QueryParams>({
         roleName: '',
@@ -56,15 +65,28 @@ function RoleManagement(): JSX.Element {
     const [checkedPermissionIds, setCheckedPermissionIds] = useState<React.Key[]>([]);
     const [loadingAuthData, setLoadingAuthData] = useState(false);
     const [savingRoleAuth, setSavingRoleAuth] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [pageNo, setPageNo] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [total, setTotal] = useState(roleList.length);
 
     const requestTableData = async () => {
         try {
             const { roleName } = queryParams;
-            const { data, total } = await fetchRoles({ roleName });
+            const response = await fetchRoles<RoleApiItem>({ roleName, pageNo, pageSize });
+            const normalized: RoleItem[] = (response.data || []).map((item) => ({
+                id: item.id,
+                roleName: item.roleName,
+                createTime: item.createTime || '',
+                roleMap: item.roleMap || '',
+                desc: item.desc || item.description || '',
+                roleDescription: item.desc || item.description || '',
+                roleDuty: item.roleMap || ''
+            }));
 
             return {
-                data,
-                total,
+                data: normalized,
+                total: response.total || 0,
             };
         } catch (e) {
             console.error(e);
@@ -92,6 +114,17 @@ function RoleManagement(): JSX.Element {
     useEffect(() => {
         loadMenuAndPermissionBase();
     }, []);
+
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true);
+            const result = await requestTableData();
+            setRolesData(result.data as RoleItem[]);
+            setTotal(result.total);
+            setLoading(false);
+        };
+        void load();
+    }, [pageNo, pageSize, queryParams.roleName]);
 
     const menuTreeData = useMemo<AuthTreeNode[]>(() => {
         const byParent = new Map<number, MenuItem[]>();
@@ -175,6 +208,12 @@ function RoleManagement(): JSX.Element {
 
     const onSearch = (roleName: string) => {
         setQueryParams({ roleName });
+        setPageNo(1);
+    };
+
+    const onPageChange = (nextPageNo: number, nextPageSize: number) => {
+        setPageNo(nextPageNo);
+        setPageSize(nextPageSize);
     };
     const onAddRole = () => {
         setCurrentRoleInfo({});
@@ -289,6 +328,17 @@ function RoleManagement(): JSX.Element {
             <DataList
                 columns={columns}
                 dataSource={rolesData}
+                tableProps={{
+                    loading,
+                    pagination: {
+                        current: pageNo,
+                        pageSize,
+                        total,
+                        showSizeChanger: true,
+                        onChange: onPageChange,
+                        showTotal: (count) => `共 ${count} 条记录`,
+                    }
+                }}
             />
             <AddRoleModal
                 mode={mode}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
-import { Form, Input, Button } from 'antd';
+import { Form, Input, Button, Space } from 'antd';
 
 interface QueryFormProps {
     onSearch?: (value: string) => void;
@@ -8,25 +8,48 @@ interface QueryFormProps {
 }
 
 function QueryForm(props: QueryFormProps): JSX.Element {
+    const [form] = Form.useForm<{ userName?: string }>();
+
+    const handleSearch = () => {
+        const value = form.getFieldValue('userName') || '';
+        props.onSearch?.(value);
+    };
+
+    const handleReset = () => {
+        form.resetFields();
+        props.onSearch?.('');
+    };
+
     return (
-        <Form layout="inline">
+        <Form form={form} layout="inline">
             <Form.Item label="" name="userName">
-                <Input.Search
+                <Input
                     allowClear
-                    enterButton={<SearchOutlined />}
                     placeholder="请输入用户名称"
-                    onSearch={props.onSearch}
+                    onPressEnter={handleSearch}
                 />
             </Form.Item>
             <Form.Item>
-                <Button
-                    icon={<PlusOutlined />}
-                    color="primary"
-                    variant="outlined"
-                    onClick={props.onAddUser}
-                >
-                    添加用户
-                </Button>
+                <Space>
+                    <Button
+                        type="primary"
+                        icon={<SearchOutlined />}
+                        onClick={handleSearch}
+                    >
+                        搜索
+                    </Button>
+                    <Button onClick={handleReset}>
+                        重置
+                    </Button>
+                    <Button
+                        icon={<PlusOutlined />}
+                        color="primary"
+                        variant="outlined"
+                        onClick={props.onAddUser}
+                    >
+                        添加用户
+                    </Button>
+                </Space>
             </Form.Item>
         </Form>
     );

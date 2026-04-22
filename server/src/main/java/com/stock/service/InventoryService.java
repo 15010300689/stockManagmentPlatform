@@ -25,6 +25,26 @@ public class InventoryService {
         return warehouseMapper.findAll();
     }
 
+    public Map<String, Object> getStoresByPage(String keyword, String status, Integer pageNo, Integer pageSize) {
+        int safePageNo = (pageNo == null || pageNo < 1) ? 1 : pageNo;
+        int safePageSize = (pageSize == null || pageSize < 1) ? 10 : Math.min(pageSize, 100);
+        String safeKeyword = keyword == null ? null : keyword.trim();
+        String safeStatus = status == null ? null : status.trim();
+        int offset = (safePageNo - 1) * safePageSize;
+
+        int total = warehouseMapper.countByCondition(safeKeyword, safeStatus);
+        List<Warehouse> list = total <= 0
+                ? Collections.emptyList()
+                : warehouseMapper.findPageByCondition(safeKeyword, safeStatus, offset, safePageSize);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("data", list);
+        result.put("total", total);
+        result.put("pageNo", safePageNo);
+        result.put("pageSize", safePageSize);
+        return result;
+    }
+
     public Result createStore(Warehouse warehouse) {
         if (warehouse == null || warehouse.getCode() == null || warehouse.getCode().trim().isEmpty()
                 || warehouse.getName() == null || warehouse.getName().trim().isEmpty()) {
@@ -115,6 +135,27 @@ public class InventoryService {
             return positionMapper.findByWarehouseId(warehouseId);
         }
         return positionMapper.findAll();
+    }
+
+    public Map<String, Object> getPositionsByPage(Integer warehouseId, String code, String type, String status, Integer pageNo, Integer pageSize) {
+        int safePageNo = (pageNo == null || pageNo < 1) ? 1 : pageNo;
+        int safePageSize = (pageSize == null || pageSize < 1) ? 10 : Math.min(pageSize, 100);
+        String safeCode = code == null ? null : code.trim();
+        String safeType = type == null ? null : type.trim();
+        String safeStatus = status == null ? null : status.trim();
+        int offset = (safePageNo - 1) * safePageSize;
+
+        int total = positionMapper.countByCondition(warehouseId, safeCode, safeType, safeStatus);
+        List<Position> list = total <= 0
+                ? Collections.emptyList()
+                : positionMapper.findPageByCondition(warehouseId, safeCode, safeType, safeStatus, offset, safePageSize);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("data", list);
+        result.put("total", total);
+        result.put("pageNo", safePageNo);
+        result.put("pageSize", safePageSize);
+        return result;
     }
 
     public Result createPosition(Position position) {

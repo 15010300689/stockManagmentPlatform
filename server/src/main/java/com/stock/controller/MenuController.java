@@ -60,6 +60,14 @@ public class MenuController {
         return menuService.getRoles();
     }
 
+    /** 角色分页列表 */
+    @GetMapping("/roles")
+    public Object getRolePage(@RequestParam(required = false) String roleName,
+                              @RequestParam(defaultValue = "1") Integer pageNo,
+                              @RequestParam(defaultValue = "10") Integer pageSize) {
+        return menuService.getRolesByPage(roleName, pageNo, pageSize);
+    }
+
     /** 某个角色已绑定的菜单ID */
     @GetMapping("/admin/role/{roleId}/menu-ids")
     public List<Long> getRoleMenuIds(@PathVariable Long roleId) {

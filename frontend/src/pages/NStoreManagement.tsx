@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Space, Button, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
@@ -33,6 +33,13 @@ interface StoreResponseItem {
     status?: string | number;
     createTime?: string;
     create_time?: string;
+}
+
+interface StoreListResponse {
+    data?: StoreResponseItem[];
+    total?: number;
+    pageNo?: number;
+    pageSize?: number;
 }
 
 function shouldFallbackByStatus(status: number): boolean {
@@ -94,15 +101,27 @@ function StoreManagement(): JSX.Element {
     const [currentStoreInfo, setCurrentStoreInfo] = useState<Partial<StoreItem>>({});
     const [dataSource, setDataSource] = useState<StoreItem[]>(fallbackStores);
     const [loading, setLoading] = useState(false);
+    const [pageNo, setPageNo] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [total, setTotal] = useState(fallbackStores.length);
 
     const requestTableData = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await authFetch(`${API_BASE}/stores`);
+            const params = new URLSearchParams();
+            if (queryParams.keyword) {
+                params.set('keyword', queryParams.keyword);
+            }
+            if (queryParams.status) {
+                params.set('status', queryParams.status);
+            }
+            params.set('pageNo', String(pageNo));
+            params.set('pageSize', String(pageSize));
+            const response = await authFetch(`${API_BASE}/stores?${params.toString()}`);
             if (!response.ok) {
                 throw new Error(`请求失败(${response.status})`);
             }
-            const payload = await response.json();
+            const payload = (await response.json()) as StoreResponseItem[] | StoreListResponse;
             const rawList = Array.isArray(payload)
                 ? payload
                 : Array.isArray(payload?.data)
@@ -117,30 +136,28 @@ function StoreManagement(): JSX.Element {
                 .filter((item: StoreItem | null): item is StoreItem => Boolean(item));
 
             setDataSource(normalized);
+            if (Array.isArray(payload)) {
+                setTotal(normalized.length);
+            } else {
+                setTotal(Number(payload.total ?? 0));
+                setPageNo(Number(payload.pageNo ?? pageNo));
+                setPageSize(Number(payload.pageSize ?? pageSize));
+            }
         } catch (error) {
             setDataSource(fallbackStores);
+            setTotal(fallbackStores.length);
+            setPageNo(1);
+            setPageSize(10);
             message.warning('后端服务异常，已切换为 mock 数据展示');
             console.warn('load stores failed, fallback to mock data:', error);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [pageNo, pageSize, queryParams.keyword, queryParams.status]);
 
     useEffect(() => {
         void requestTableData();
     }, [requestTableData]);
-
-    // 过滤数据
-    const filteredData = useMemo(
-        () => dataSource.filter(item => {
-            const matchKeyword = !queryParams.keyword ||
-                item.code.toLowerCase().includes(queryParams.keyword.toLowerCase()) ||
-                item.name.toLowerCase().includes(queryParams.keyword.toLowerCase());
-            const matchStatus = !queryParams.status || item.status === queryParams.status;
-            return matchKeyword && matchStatus;
-        }),
-        [dataSource, queryParams.keyword, queryParams.status]
-    );
 
     const columns: ColumnsType<StoreItem> = [
         {
@@ -237,6 +254,12 @@ function StoreManagement(): JSX.Element {
             keyword: values.keyword || '',
             status: values.status || ''
         });
+        setPageNo(1);
+    };
+
+    const onPageChange = (nextPageNo: number, nextPageSize: number) => {
+        setPageNo(nextPageNo);
+        setPageSize(nextPageSize);
     };
 
     const onAddStore = () => {
@@ -271,6 +294,7 @@ function StoreManagement(): JSX.Element {
             const errorMsg = (error as Error).message || '';
             if (errorMsg.startsWith('fallback:')) {
                 setDataSource((prev) => prev.filter((item) => item.id !== record.id));
+                setTotal((prev) => Math.max(prev - 1, 0));
                 message.warning('后端删除接口不可用，已切换为 mock 删除');
                 return;
             }
@@ -334,6 +358,7 @@ function StoreManagement(): JSX.Element {
                         createTime: formatDateTime(new Date().toISOString())
                     };
                     setDataSource((prev) => [...prev, newStore]);
+                    setTotal((prev) => prev + 1);
                     message.warning('后端新增接口不可用，已切换为 mock 新增');
                 } else {
                     setDataSource((prev) => prev.map(item =>
@@ -361,8 +386,18 @@ function StoreManagement(): JSX.Element {
             />
             <DataList
                 columns={columns}
-                dataSource={filteredData}
-                tableProps={{ loading }}
+                dataSource={dataSource}
+                tableProps={{
+                    loading,
+                    pagination: {
+                        current: pageNo,
+                        pageSize,
+                        total,
+                        showSizeChanger: true,
+                        onChange: onPageChange,
+                        showTotal: (count) => `共 ${count} 条记录`,
+                    }
+                }}
             />
             <AddStoreModal
                 mode={mode}

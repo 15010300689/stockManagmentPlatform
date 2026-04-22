@@ -20,6 +20,12 @@ public interface MenuMapper {
 
     List<Role> findAllRoles();
 
+    List<Role> findRolesByNamePage(@Param("roleName") String roleName,
+                                   @Param("offset") int offset,
+                                   @Param("limit") int limit);
+
+    int countRolesByName(@Param("roleName") String roleName);
+
     List<Long> findMenuIdsByRoleId(@Param("roleId") Long roleId);
 
     int deleteRoleMenus(@Param("roleId") Long roleId);

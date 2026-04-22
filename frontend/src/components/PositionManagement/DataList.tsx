@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Card, Space, Button, Tag, Row, Col, Typography, Empty, Statistic } from 'antd';
+import { Card, Space, Button, Tag, Row, Col, Typography, Empty, Statistic, Pagination } from 'antd';
 import {
     HomeOutlined,
     AppstoreOutlined,
@@ -30,10 +30,16 @@ interface DataListProps {
     onEdit?: (node: TreeNode) => void;
     onDelete?: (node: TreeNode) => void;
     loading?: boolean;
+    pagination?: {
+        current: number;
+        pageSize: number;
+        total: number;
+        onChange: (page: number, pageSize: number) => void;
+    };
 }
 
 function DataList(props: DataListProps): JSX.Element {
-    const { treeData = [], onEdit, onDelete, loading = false } = props;
+    const { treeData = [], onEdit, onDelete, loading = false, pagination } = props;
     const [expandedKeys, setExpandedKeys] = useState<Record<number, boolean>>({});
 
     // 初始化展开状态：默认展开第一层
@@ -208,6 +214,18 @@ function DataList(props: DataListProps): JSX.Element {
         return (
             <div style={{ marginTop: 16, padding: '40px 0' }}>
                 <Empty description="暂无仓位数据" />
+                {pagination && (
+                    <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Pagination
+                            current={pagination.current}
+                            pageSize={pagination.pageSize}
+                            total={pagination.total}
+                            showSizeChanger
+                            onChange={pagination.onChange}
+                            showTotal={(count) => `共 ${count} 条记录`}
+                        />
+                    </div>
+                )}
             </div>
         );
     }
@@ -264,6 +282,18 @@ function DataList(props: DataListProps): JSX.Element {
             <div style={{ opacity: loading ? 0.6 : 1, pointerEvents: loading ? 'none' : 'auto' }}>
                 {treeData.map(node => renderNodeCard(node, 0))}
             </div>
+            {pagination && (
+                <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                    <Pagination
+                        current={pagination.current}
+                        pageSize={pagination.pageSize}
+                        total={pagination.total}
+                        showSizeChanger
+                        onChange={pagination.onChange}
+                        showTotal={(count) => `共 ${count} 条记录`}
+                    />
+                </div>
+            )}
         </div>
     );
 }

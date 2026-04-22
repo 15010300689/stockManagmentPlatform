@@ -60,6 +60,13 @@ interface StockSubmitValues {
     amount: number;
 }
 
+interface ProductListResponse {
+    data?: ProductItem[];
+    total?: number;
+    pageNo?: number;
+    pageSize?: number;
+}
+
 interface PositionNodeItem {
     id: number;
     warehouseId: number;
@@ -82,6 +89,9 @@ function ProductManagement() {
     const [appliedSearch, setAppliedSearch] = useState('');
     const [warehouseOptions, setWarehouseOptions] = useState<StoreItem[]>(storeList as unknown as StoreItem[]);
     const [positionOptions, setPositionOptions] = useState<PositionNodeItem[]>(positionList as unknown as PositionNodeItem[]);
+    const [pageNo, setPageNo] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [total, setTotal] = useState((mockProducts as ProductItem[]).length);
 
     // 模态框状态
     const [productModalVisible, setProductModalVisible] = useState(false);
@@ -115,17 +125,37 @@ function ProductManagement() {
     }, []);
 
     // 加载商品列表（nameQuery 仅在「搜索」等场景显式传入，避免与 appliedSearch 更新不同步）
-    const loadProducts = async (nameQuery?: string) => {
+    const loadProducts = async (params?: { nameQuery?: string; pageNo?: number; pageSize?: number }) => {
         setLoading(true);
         try {
-            const effective =
-                nameQuery !== undefined ? nameQuery.trim() : appliedSearch.trim();
-            const url = effective
-                ? `${API_BASE}/products?name=${encodeURIComponent(effective)}`
-                : `${API_BASE}/products`;
+            const effective = params?.nameQuery !== undefined
+                ? params.nameQuery.trim()
+                : appliedSearch.trim();
+            const currentPageNo = params?.pageNo ?? pageNo;
+            const currentPageSize = params?.pageSize ?? pageSize;
+            const query = new URLSearchParams();
+            if (effective) {
+                query.set('name', effective);
+            }
+            query.set('pageNo', String(currentPageNo));
+            query.set('pageSize', String(currentPageSize));
+            const url = `${API_BASE}/products?${query.toString()}`;
             const response = await authFetch(url);
-            const data = (await response.json()) as ProductItem[];
-            setProducts(data || []);
+            const payload = await response.json();
+            if (Array.isArray(payload)) {
+                setProducts(payload as ProductItem[]);
+                setTotal((payload as ProductItem[]).length);
+                setPageNo(currentPageNo);
+                setPageSize(currentPageSize);
+                return;
+            }
+
+            const data = payload as ProductListResponse;
+            const list = Array.isArray(data?.data) ? data.data : [];
+            setProducts(list);
+            setTotal(Number(data?.total ?? 0));
+            setPageNo(Number(data?.pageNo ?? currentPageNo));
+            setPageSize(Number(data?.pageSize ?? currentPageSize));
         } catch (error) {
             message.error('加载商品失败: ' + (error as Error).message);
         } finally {
@@ -286,14 +316,20 @@ function ProductManagement() {
     const handleSearch = () => {
         const kw = searchInput.trim();
         setAppliedSearch(kw);
-        void loadProducts(kw);
+        setPageNo(1);
+        void loadProducts({ nameQuery: kw, pageNo: 1, pageSize });
     };
 
     // 重置：清空名称条件，重新请求全量列表
     const handleReset = () => {
         setSearchInput('');
         setAppliedSearch('');
-        void loadProducts('');
+        setPageNo(1);
+        void loadProducts({ nameQuery: '', pageNo: 1, pageSize });
+    };
+
+    const handlePageChange = (nextPageNo: number, nextPageSize: number) => {
+        void loadProducts({ pageNo: nextPageNo, pageSize: nextPageSize });
     };
 
     const openInventory = (record: ProductItem) => {
@@ -481,8 +517,11 @@ function ProductManagement() {
                     rowKey="id"
                     loading={loading}
                     pagination={{
-                        pageSize: 10,
+                        current: pageNo,
+                        pageSize,
+                        total,
                         showSizeChanger: true,
+                        onChange: handlePageChange,
                         showTotal: (total) => `共 ${total} 条记录`,
                     }}
                 />

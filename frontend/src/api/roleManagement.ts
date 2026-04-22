@@ -3,6 +3,8 @@ import { ROLES_URL } from '../http/url';
 
 interface FetchRolesParams {
     roleName?: string;
+    pageNo?: number;
+    pageSize?: number;
 }
 
 interface FetchRolesResponse<T = unknown> {

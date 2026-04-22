@@ -10,6 +10,18 @@ public interface PositionMapper {
 
     List<Position> findAll();
 
+    List<Position> findPageByCondition(@Param("warehouseId") Integer warehouseId,
+                                       @Param("code") String code,
+                                       @Param("type") String type,
+                                       @Param("status") String status,
+                                       @Param("offset") int offset,
+                                       @Param("limit") int limit);
+
+    int countByCondition(@Param("warehouseId") Integer warehouseId,
+                         @Param("code") String code,
+                         @Param("type") String type,
+                         @Param("status") String status);
+
     Position findById(@Param("id") Integer id);
 
     Position findByCodeInWarehouse(@Param("warehouseId") Integer warehouseId, @Param("code") String code);

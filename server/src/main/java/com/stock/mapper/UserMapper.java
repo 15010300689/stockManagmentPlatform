@@ -9,6 +9,12 @@ public interface UserMapper {
 
     User findByUsername(@Param("username") String username);
 
+    List<User> findUsersByNamePage(@Param("username") String username,
+                                   @Param("offset") int offset,
+                                   @Param("limit") int limit);
+
+    int countUsersByName(@Param("username") String username);
+
     List<Role> findRolesByUserId(@Param("userId") Long userId);
 
     int insert(User user);
