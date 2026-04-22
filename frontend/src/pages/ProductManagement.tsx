@@ -14,7 +14,8 @@ import {
     Popconfirm,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { authFetch, hasPermission } from '../auth';
+import { hasPermission } from '../auth';
+import { requestWithAuth } from '../api/client';
 import StatisticsModal from '../components/ProductManagement/StatisticsModal';
 import LowStockModal     from '../components/ProductManagement/LowStockModal';
 import AddProductModal from '../components/ProductManagement/AddProductModal';
@@ -140,7 +141,7 @@ function ProductManagement() {
             query.set('pageNo', String(currentPageNo));
             query.set('pageSize', String(currentPageSize));
             const url = `${API_BASE}/products?${query.toString()}`;
-            const response = await authFetch(url);
+            const response = await requestWithAuth(url);
             const payload = await response.json();
             if (Array.isArray(payload)) {
                 setProducts(payload as ProductItem[]);
@@ -166,7 +167,7 @@ function ProductManagement() {
     // 加载统计信息
     const loadStatistics = async () => {
         try {
-            const response = await authFetch(`${API_BASE}/statistics`);
+            const response = await requestWithAuth(`${API_BASE}/statistics`);
             const data = (await response.json()) as Stats;
             setStats(data);
         } catch (error) {
@@ -177,8 +178,8 @@ function ProductManagement() {
     const loadWarehousesAndPositions = async () => {
         try {
             const [storesRes, positionsRes] = await Promise.all([
-                authFetch(`${API_BASE}/stores`),
-                authFetch(`${API_BASE}/positions`)
+                requestWithAuth(`${API_BASE}/stores`),
+                requestWithAuth(`${API_BASE}/positions`)
             ]);
 
             if (storesRes.ok) {
@@ -237,7 +238,7 @@ function ProductManagement() {
     // 删除商品（Spring 的 Result 失败时仍可能 HTTP 200，必须判断 success）
     const handleDelete = async (productId: string | number) => {
         try {
-            const response = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(productId)}`, {
+            const response = await requestWithAuth(`${API_BASE}/product?id=${encodeURIComponent(productId)}`, {
                 method: 'DELETE'
             });
             let result: { success?: boolean; message?: string } = {};
@@ -271,7 +272,7 @@ function ProductManagement() {
     // 打开入库/出库模态框
     const openStockModal = async (productId: string | number, type: StockType) => {
         try {
-            const response = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(String(productId))}`);
+            const response = await requestWithAuth(`${API_BASE}/product?id=${encodeURIComponent(String(productId))}`);
             if (!response.ok) {
                 message.error('获取商品信息失败');
                 return;
@@ -291,7 +292,7 @@ function ProductManagement() {
     const handleStockSubmit = async (values: StockSubmitValues) => {
         const endpoint = currentStockType === 'in' ? 'stock-in' : 'stock-out';
         try {
-            const response = await authFetch(`${API_BASE}/${endpoint}`, {
+            const response = await requestWithAuth(`${API_BASE}/${endpoint}`, {
                 method: 'POST',
                 body: JSON.stringify({
                     id: currentProductId != null ? Number(currentProductId) : null,
@@ -354,7 +355,7 @@ function ProductManagement() {
             title: '商品名称',
             dataIndex: 'name',
             key: 'name',
-            width: 200,
+            width: 250,
             align: 'center',
         },
         {

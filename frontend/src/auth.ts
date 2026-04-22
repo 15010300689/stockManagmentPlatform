@@ -1,5 +1,5 @@
 // 认证工具函数（TypeScript）
-import { isMockEnabled, mockApiFetch, shouldFallbackToMockByResponse } from './mock/apiMock';
+import http from './http';
 
 export interface RoleItem {
     id: number;
@@ -69,30 +69,14 @@ export function isAuthenticated(): boolean {
     return getToken() !== null;
 }
 
-export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
-    if (isMockEnabled()) {
-        const mockRes = await mockApiFetch(url, options);
-        if (mockRes) return mockRes;
-    }
-
-    try {
-        const response = await fetch(url, options);
-        if (!response.ok && shouldFallbackToMockByResponse(url, response)) {
-            const mockRes = await mockApiFetch(url, options);
-            if (mockRes) return mockRes;
-        }
-        return response;
-    } catch (error) {
-        const mockRes = await mockApiFetch(url, options);
-        if (mockRes) return mockRes;
-        throw error;
-    }
+export async function requestRaw(url: string, options: RequestInit = {}): Promise<Response> {
+    return http.fetchLike(url, options);
 }
 
 /**
- * 带认证的 fetch 请求
+ * 带认证的请求（兼容 Response 形态）
  */
-export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+export async function requestWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
     const token = getToken();
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -103,7 +87,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
         headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await apiFetch(url, {
+    const response = await requestRaw(url, {
         ...options,
         headers,
     });
@@ -115,3 +99,8 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
 
     return response;
 }
+
+/** @deprecated 请使用 requestRaw */
+export const apiFetch = requestRaw;
+/** @deprecated 请使用 requestWithAuth */
+export const authFetch = requestWithAuth;

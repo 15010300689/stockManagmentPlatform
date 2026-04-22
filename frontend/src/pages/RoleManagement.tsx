@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, Space, Button, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
 
 import QueryForm from '../components/RoleManagement/QueryForm';
 import DataList from '../components/RoleManagement/DataList';
@@ -9,7 +10,7 @@ import AddRoleModal from '../components/RoleManagement/AddRoleModal';
 import { roleList } from '../mock/roleList';
 import { fetchRoles } from '../api/roleManagement';
 import type { RoleItem } from '../types/role';
-import { authFetch } from '../auth';
+import { requestWithAuth } from '../api/client';
 import type { RoleFormValues } from '../types/role';
 
 interface QueryParams {
@@ -100,8 +101,8 @@ function RoleManagement(): JSX.Element {
     const loadMenuAndPermissionBase = async () => {
         try {
             const [menuRes, permissionRes] = await Promise.all([
-                authFetch(`${API_BASE}/admin/menus`),
-                authFetch(`${API_BASE}/admin/permissions`)
+                requestWithAuth(`${API_BASE}/admin/menus`),
+                requestWithAuth(`${API_BASE}/admin/permissions`)
             ]);
             const [menuData, permissionData] = await Promise.all([menuRes.json(), permissionRes.json()]);
             setMenus(Array.isArray(menuData) ? menuData : []);
@@ -169,21 +170,14 @@ function RoleManagement(): JSX.Element {
             title: '创建时间',
             dataIndex: 'createTime',
             key: 'createTime',
+            align: 'center',
+            width: 200,
+            render: (createTime: string) => (dayjs(createTime).format('YYYY-MM-DD HH:mm:ss')),
         },
         {
             title: '权限职责',
             dataIndex: 'desc',
             key: 'desc',
-            render: (text: string) => (
-                <ul>
-                    {text.split('、').map(item => <li key={item}>{item}</li>)}
-                </ul>
-            )
-        },
-        {
-            title: '典型权限',
-            dataIndex: 'roleMap',
-            key: 'roleMap',
             render: (text: string) => (
                 <ul>
                     {text.split('、').map(item => <li key={item}>{item}</li>)}
@@ -234,8 +228,8 @@ function RoleManagement(): JSX.Element {
         setLoadingAuthData(true);
         try {
             const [menuRes, permissionRes] = await Promise.all([
-                authFetch(`${API_BASE}/admin/role/${roleId}/menu-ids`),
-                authFetch(`${API_BASE}/admin/role/${roleId}/permission-ids`)
+                requestWithAuth(`${API_BASE}/admin/role/${roleId}/menu-ids`),
+                requestWithAuth(`${API_BASE}/admin/role/${roleId}/permission-ids`)
             ]);
             const [menuIds, permissionIds] = await Promise.all([menuRes.json(), permissionRes.json()]);
             setCheckedMenuIds(Array.isArray(menuIds) ? menuIds : []);
@@ -251,11 +245,11 @@ function RoleManagement(): JSX.Element {
         setSavingRoleAuth(true);
         try {
             const [menuRes, permissionRes] = await Promise.all([
-                authFetch(`${API_BASE}/admin/role/${roleId}/menus`, {
+                requestWithAuth(`${API_BASE}/admin/role/${roleId}/menus`, {
                     method: 'POST',
                     body: JSON.stringify({ menuIds }),
                 }),
-                authFetch(`${API_BASE}/admin/role/${roleId}/permissions`, {
+                requestWithAuth(`${API_BASE}/admin/role/${roleId}/permissions`, {
                     method: 'POST',
                     body: JSON.stringify({ permissionIds }),
                 })

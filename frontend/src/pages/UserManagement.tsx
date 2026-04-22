@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Space, Button, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
 import QueryForm from '../components/UserManagement/QueryForm';
 import DataList from '../components/UserManagement/DataList';
 import AddUserModal from '../components/UserManagement/AddUserModal';
-import { authFetch } from '../auth';
+import { requestWithAuth } from '../api/client';
 
 import { userList } from '../mock/userList';
 import RenderOverTag from '../components/RenderOverTag';
@@ -25,7 +26,7 @@ function UserManagement(): JSX.Element {
             title: '用户ID',
             dataIndex: 'id',
             key: 'id',
-            width: '160',
+            width: 120,
             align: 'center',
             fixed: 'left',
         },
@@ -35,17 +36,21 @@ function UserManagement(): JSX.Element {
             key: 'name',
             align: 'center',
             fixed: 'left',
+            width: 200,
         },
         {
             title: '创建时间',
             dataIndex: 'createTime',
             key: 'createTime',
             align: 'center',
+            width: 200,
+            render: (createTime: string) => (dayjs(createTime).format('YYYY-MM-DD HH:mm:ss')),
         },
         {
             title: '角色',
             dataIndex: 'roleList',
             key: 'roleList',
+            align: 'center',
             render: (roles: UserItem['roleList']) => (
                 RenderOverTag(roles.map(item => {
                     return {
@@ -93,7 +98,7 @@ function UserManagement(): JSX.Element {
             }
             params.set('pageNo', String(pageNo));
             params.set('pageSize', String(pageSize));
-            const response = await authFetch(`${API_BASE}/users?${params.toString()}`);
+            const response = await requestWithAuth(`${API_BASE}/users?${params.toString()}`);
             if (!response.ok) {
                 throw new Error(`请求失败(${response.status})`);
             }

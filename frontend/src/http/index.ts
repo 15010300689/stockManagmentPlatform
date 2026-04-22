@@ -3,7 +3,7 @@ import qs from 'qs';
 import originJSONP from 'jsonp';
 import { message } from 'antd';
 import type { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { clearAuth } from '../auth';
+import { clearAuth, getToken } from '../auth';
 import { isMockEnabled, mockApiFetch } from '../mock/apiMock';
 
 type PlainObject = Record<string, unknown>;
@@ -150,6 +150,14 @@ class Request {
                 }
 
                 config.url = url;
+                const token = getToken();
+                if (token) {
+                    const headers = (config.headers || {}) as Record<string, string>;
+                    if (!headers.Authorization) {
+                        headers.Authorization = `Bearer ${token}`;
+                    }
+                    (config as AxiosRequestConfig & { headers: Record<string, string> }).headers = headers;
+                }
                 config.params = {
                     [`${Date.now().toString(36).substring(3)}`]: '', // 避免接口缓存
                     ...(config.params || {}),
@@ -164,6 +172,62 @@ class Request {
             (response) => this.responseIntercept(response),
             (error) => Promise.reject(this.normalizeAxiosError(error))
         );
+    }
+
+    private headersToRecord(headers?: HeadersInit): Record<string, string> {
+        if (!headers) return {};
+        if (headers instanceof Headers) {
+            const result: Record<string, string> = {};
+            headers.forEach((value, key) => {
+                result[key] = value;
+            });
+            return result;
+        }
+        if (Array.isArray(headers)) {
+            return headers.reduce<Record<string, string>>((acc, [key, value]) => {
+                acc[key] = value;
+                return acc;
+            }, {});
+        }
+        return headers as Record<string, string>;
+    }
+
+    /**
+     * 统一底层请求：以 fetch 风格返回 Response，供 auth.ts 复用
+     */
+    async fetchLike(url: string, options: RequestInit = {}): Promise<Response> {
+        if (isMockEnabled()) {
+            const mockRes = await mockApiFetch(url, options);
+            if (mockRes) return mockRes;
+        }
+
+        const method = (options.method || 'GET').toUpperCase();
+        const headers = this.headersToRecord(options.headers);
+        const body = options.body;
+
+        try {
+            const response = await this.axiosInstance.request({
+                url,
+                method,
+                headers: headers as AxiosRequestConfig['headers'],
+                data: body,
+                validateStatus: () => true,
+            });
+            const contentType = String(response.headers?.['content-type'] || headers['Content-Type'] || 'application/json');
+            const payload = typeof response.data === 'string'
+                ? response.data
+                : JSON.stringify(response.data ?? null);
+            return new Response(payload, {
+                status: response.status,
+                headers: {
+                    'Content-Type': contentType
+                }
+            });
+        } catch (error) {
+            const mockRes = await mockApiFetch(url, options);
+            if (mockRes) return mockRes;
+            throw this.normalizeAxiosError(error);
+        }
     }
 
     private normalizeBusinessError(

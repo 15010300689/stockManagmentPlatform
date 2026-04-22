@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Modal, Button, InputNumber, Form, Space, message } from 'antd';
-import { authFetch } from '../../auth';
+import { requestWithAuth } from '../../api/client';
 import type { ProductItem } from '../../types/inventory';
 
 const API_BASE = '/api';
@@ -37,7 +37,7 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
         if (!currentProduct) return;
         const endpoint = currentStockType === 'in' ? 'stock-in' : 'stock-out';
         try {
-            const response = await authFetch(`${API_BASE}/${endpoint}`, {
+            const response = await requestWithAuth(`${API_BASE}/${endpoint}`, {
                 method: 'POST',
                 body: JSON.stringify({ id: Number(currentProduct.id), amount: values.amount }),
             });

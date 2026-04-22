@@ -18,17 +18,21 @@ function AppRoutes(): JSX.Element {
     return (
         <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/product" element={<PrivateRoute><MainLayout><ProductManagement /></MainLayout></PrivateRoute>} />
-            <Route path="/account" element={<PrivateRoute><MainLayout><AccountManagement /></MainLayout></PrivateRoute>} />
-            <Route path="/permission" element={<Navigate to="/permission/menu" replace />} />
-            <Route path="/permission/menu" element={<PrivateRoute><MainLayout><PermissionManagement /></MainLayout></PrivateRoute>} />
-            <Route path="/role" element={<PrivateRoute><MainLayout><RoleManagement /></MainLayout></PrivateRoute>} />
-            <Route path="/user" element={<PrivateRoute><MainLayout><UserManagement /></MainLayout></PrivateRoute>} />
-            <Route path="/storeManagement" element={<PrivateRoute><MainLayout><StoreManagement /></MainLayout></PrivateRoute>} />
-            <Route path="/positionManagement" element={<PrivateRoute><MainLayout><PositionManagement /></MainLayout></PrivateRoute>} />
-            <Route path="/unitManagement" element={<PrivateRoute><MainLayout><UnitManagement /></MainLayout></PrivateRoute>} />
-            <Route path="/currencyManagement" element={<PrivateRoute><MainLayout><CurrencyManagement /></MainLayout></PrivateRoute>} />
-            <Route path="/transportManagement" element={<PrivateRoute><MainLayout><TransportManagement /></MainLayout></PrivateRoute>} />
+            <Route element={<PrivateRoute />}>
+                <Route element={<MainLayout />}>
+                    <Route path="/product" element={<ProductManagement />} />
+                    <Route path="/account" element={<AccountManagement />} />
+                    <Route path="/permission" element={<Navigate to="/permission/menu" replace />} />
+                    <Route path="/permission/menu" element={<PermissionManagement />} />
+                    <Route path="/role" element={<RoleManagement />} />
+                    <Route path="/user" element={<UserManagement />} />
+                    <Route path="/storeManagement" element={<StoreManagement />} />
+                    <Route path="/positionManagement" element={<PositionManagement />} />
+                    <Route path="/unitManagement" element={<UnitManagement />} />
+                    <Route path="/currencyManagement" element={<CurrencyManagement />} />
+                    <Route path="/transportManagement" element={<TransportManagement />} />
+                </Route>
+            </Route>
             <Route path="/" element={<Navigate to="/product" replace />} />
             <Route path="*" element={<Navigate to="/product" replace />} />
         </Routes>

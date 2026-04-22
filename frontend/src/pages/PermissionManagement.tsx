@@ -11,7 +11,7 @@ import {
     Switch,
     message
 } from 'antd';
-import { authFetch } from '../auth';
+import { requestWithAuth } from '../api/client';
 
 const API_BASE = '/api';
 
@@ -50,7 +50,7 @@ function PermissionManagement(): JSX.Element {
     const loadMenus = async () => {
         setLoading(true);
         try {
-            const res = await authFetch(`${API_BASE}/admin/menus`);
+            const res = await requestWithAuth(`${API_BASE}/admin/menus`);
             const data = await res.json();
             setMenus(Array.isArray(data) ? data : []);
         } catch (e) {
@@ -159,7 +159,7 @@ function PermissionManagement(): JSX.Element {
                 : `${API_BASE}/admin/menu`;
             const method = editing ? 'PUT' : 'POST';
 
-            const res = await authFetch(url, {
+            const res = await requestWithAuth(url, {
                 method,
                 body: JSON.stringify(payload),
             });
@@ -187,34 +187,41 @@ function PermissionManagement(): JSX.Element {
         {
             title: '菜单名称',
             dataIndex: 'name',
+            align: 'center',
+            width: 200,
             key: 'name',
+            fixed: 'left',
             render: (_: unknown, record: MenuItem) => (
                 <span style={{ paddingLeft: (record.level || 0) * 18 }}>
                     {record.icon ? `${record.icon} ` : ''}{record.name}
                 </span>
             )
         },
-        { title: '路由路径', dataIndex: 'path', key: 'path', width: 220 },
-        { title: '父级ID', dataIndex: 'parentId', key: 'parentId', width: 100 },
-        { title: '排序', dataIndex: 'sortNo', key: 'sortNo', width: 80 },
+        { title: '路由路径', dataIndex: 'path', key: 'path', width: 220, align: 'center' },
+        { title: '父级ID', dataIndex: 'parentId', key: 'parentId', width: 100, align: 'center' },
+        { title: '排序', dataIndex: 'sortNo', key: 'sortNo', width: 80, align: 'center' },
         {
             title: '可见',
             dataIndex: 'visible',
             key: 'visible',
             width: 80,
-            render: (v: number) => (v === 1 ? '是' : '否')
+            render: (v: number) => (v === 1 ? '是' : '否'),
+            align: 'center',
         },
         {
             title: '状态',
             dataIndex: 'status',
             key: 'status',
             width: 80,
-            render: (v: number) => (v === 1 ? '启用' : '停用')
+            render: (v: number) => (v === 1 ? '启用' : '停用'),
+            align: 'center',
         },
         {
             title: '操作',
             key: 'action',
             width: 220,
+            align: 'center',
+            fixed: 'right',
             render: (_: unknown, record: MenuItem) => (
                 <>
                     <Button type="link" onClick={() => openAddChildModal(record)}>

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Button, Table, InputNumber, Space, Tag, message, Alert, Typography, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { authFetch } from '../../auth';
+import { requestWithAuth } from '../../api/client';
 import { shouldFallbackToMockByResponse } from '../../mock/apiMock';
 
 import { mockLowStockProducts } from '../../mock/productManagement';
@@ -63,7 +63,7 @@ function LowStockModal({ visible, onClose, onOpenStockIn, onOpenInventory }: Low
         setFromMock(false);
         const t = Math.max(1, Math.floor(thresholdRef.current));
         try {
-            const response = await authFetch(`${API_BASE}/low-stock?threshold=${t}`);
+            const response = await requestWithAuth(`${API_BASE}/low-stock?threshold=${t}`);
             const data = await response.json().catch(() => null);
             if (response.ok && Array.isArray(data)) {
                 setProducts(normalizeRows(data));

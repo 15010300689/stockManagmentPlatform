@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import QueryForm from '../components/StoreManagement/QueryForm';
 import DataList from '../components/StoreManagement/DataList';
 import AddStoreModal from '../components/StoreManagement/AddStoreModal';
-import { authFetch } from '../auth';
+import { requestWithAuth } from '../api/client';
 import { storeList } from '../mock/storeList';
 import type { StoreItem } from '../types/inventory';
 
@@ -117,7 +117,7 @@ function StoreManagement(): JSX.Element {
             }
             params.set('pageNo', String(pageNo));
             params.set('pageSize', String(pageSize));
-            const response = await authFetch(`${API_BASE}/stores?${params.toString()}`);
+            const response = await requestWithAuth(`${API_BASE}/stores?${params.toString()}`);
             if (!response.ok) {
                 throw new Error(`请求失败(${response.status})`);
             }
@@ -277,7 +277,7 @@ function StoreManagement(): JSX.Element {
     const onDeleteStore = async (record: StoreItem) => {
         try {
             setLoading(true);
-            const response = await authFetch(`${API_BASE}/stores/${record.id}`, {
+            const response = await requestWithAuth(`${API_BASE}/stores/${record.id}`, {
                 method: 'DELETE'
             });
 
@@ -313,7 +313,7 @@ function StoreManagement(): JSX.Element {
         try {
             setLoading(true);
             if (submitMode === 'add') {
-                const response = await authFetch(`${API_BASE}/stores`, {
+                const response = await requestWithAuth(`${API_BASE}/stores`, {
                     method: 'POST',
                     body: JSON.stringify(values)
                 });
@@ -327,7 +327,7 @@ function StoreManagement(): JSX.Element {
                 message.success('新增仓库成功');
                 await requestTableData();
             } else {
-                const response = await authFetch(`${API_BASE}/stores/${currentStoreInfo.id}`, {
+                const response = await requestWithAuth(`${API_BASE}/stores/${currentStoreInfo.id}`, {
                     method: 'PUT',
                     body: JSON.stringify(values)
                 });

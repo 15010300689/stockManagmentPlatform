@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
 import type { FormInstance } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { apiFetch, saveAuth } from '../auth';
+import { requestRaw, saveAuth } from '../auth';
 import { notifyErrorOnce } from '../http';
 
 const API_BASE = '/api';
@@ -40,7 +40,7 @@ function Login(): JSX.Element {
     const handleSubmit = async (values: LoginForm) => {
         setLoading(true);
         try {
-            const response = await apiFetch(`${API_BASE}/login`, {
+            const response = await requestRaw(`${API_BASE}/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

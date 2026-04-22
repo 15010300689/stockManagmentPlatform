@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Modal, Button, Input, InputNumber, Form, Space, Select, TreeSelect, Switch, message } from 'antd';
 import { currencyConfig } from '../../config/currencyConfig';
 import { unitConfig } from '../../config/unitConfig';
-import { authFetch } from '../../auth';
+import { requestWithAuth } from '../../api/client';
 import type { PositionItem, StoreItem } from '../../types/inventory';
 
 const API_BASE = '/api';
@@ -112,7 +112,7 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
         if (!visible || !currentProductId) return;
         setDetailLoading(true);
         try {
-            const res = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(currentProductId)}`);
+            const res = await requestWithAuth(`${API_BASE}/product?id=${encodeURIComponent(currentProductId)}`);
             const data = await res.json();
             if (!res.ok) {
                 message.error((data as ApiResult).message || '获取商品失败');
@@ -167,7 +167,7 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
         setSubmitting(true);
         try {
             if (currentProductId) {
-                const res = await authFetch(`${API_BASE}/product?id=${encodeURIComponent(currentProductId)}`, {
+                const res = await requestWithAuth(`${API_BASE}/product?id=${encodeURIComponent(currentProductId)}`, {
                     method: 'PUT',
                     body: JSON.stringify(body),
                 });
@@ -179,7 +179,7 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
                 writeLocationPrefs(currentProductId, values.defaultWarehouseId, values.defaultPositionId);
                 message.success(result.message || '商品更新成功');
             } else {
-                const res = await authFetch(`${API_BASE}/products`, {
+                const res = await requestWithAuth(`${API_BASE}/products`, {
                     method: 'POST',
                     body: JSON.stringify(body),
                 });

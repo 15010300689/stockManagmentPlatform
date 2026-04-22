@@ -25,7 +25,7 @@ import {
     BarsOutlined,
     ContainerOutlined
 } from '@ant-design/icons';
-import { authFetch } from '../../auth';
+import { requestWithAuth } from '../../api/client';
 
 const { Text } = Typography;
 
@@ -206,8 +206,8 @@ function InventoryDrawer({
             setInventoryLoading(true);
             try {
                 const [summaryRes, positionsRes] = await Promise.all([
-                    authFetch(`${API_BASE}/inventory/summary?productId=${encodeURIComponent(String(product.id))}`),
-                    authFetch(`${API_BASE}/inventory/positions?productId=${encodeURIComponent(String(product.id))}`)
+                    requestWithAuth(`${API_BASE}/inventory/summary?productId=${encodeURIComponent(String(product.id))}`),
+                    requestWithAuth(`${API_BASE}/inventory/positions?productId=${encodeURIComponent(String(product.id))}`)
                 ]);
 
                 if (summaryRes.ok) {
@@ -247,7 +247,7 @@ function InventoryDrawer({
     const handleAdjust = async (values: AdjustFormValues) => {
         if (!product?.id) return;
         try {
-            const response = await authFetch(`${API_BASE}/inventory/adjust`, {
+            const response = await requestWithAuth(`${API_BASE}/inventory/adjust`, {
                 method: 'POST',
                 body: JSON.stringify({
                     productId: Number(product.id),

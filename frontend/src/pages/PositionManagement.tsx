@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import QueryForm from '../components/PositionManagement/QueryForm';
 import DataList from '../components/PositionManagement/DataList';
 import AddPositionModal from '../components/PositionManagement/AddPositionModal';
-import { authFetch } from '../auth';
+import { requestWithAuth } from '../api/client';
 import { positionList } from '../mock/positionList';
 import { storeList } from '../mock/storeList';
 import type { PositionItem, StoreItem } from '../types/inventory';
@@ -166,7 +166,7 @@ function PositionManagement(): JSX.Element {
     const [total, setTotal] = useState(fallbackPositions.length);
 
     const requestStoreData = useCallback(async () => {
-        const response = await authFetch(`${API_BASE}/stores`);
+        const response = await requestWithAuth(`${API_BASE}/stores`);
         if (!response.ok) {
             throw new Error(`stores:${response.status}`);
         }
@@ -203,7 +203,7 @@ function PositionManagement(): JSX.Element {
         params.set('pageSize', String(pageSize));
         const query = params.toString();
         const url = query ? `${API_BASE}/positions?${query}` : `${API_BASE}/positions`;
-        const response = await authFetch(url);
+        const response = await requestWithAuth(url);
         if (!response.ok) {
             throw new Error(`positions:${response.status}`);
         }
@@ -308,7 +308,7 @@ function PositionManagement(): JSX.Element {
     const onDeletePosition = async (record: DataListNode) => {
         try {
             setLoading(true);
-            const response = await authFetch(`${API_BASE}/positions/${record.id}`, {
+            const response = await requestWithAuth(`${API_BASE}/positions/${record.id}`, {
                 method: 'DELETE'
             });
             if (!response.ok) {
@@ -337,7 +337,7 @@ function PositionManagement(): JSX.Element {
         try {
             setLoading(true);
             if (submitMode === 'add') {
-                const response = await authFetch(`${API_BASE}/positions`, {
+                const response = await requestWithAuth(`${API_BASE}/positions`, {
                     method: 'POST',
                     body: JSON.stringify(values)
                 });
@@ -350,7 +350,7 @@ function PositionManagement(): JSX.Element {
                 message.success('新增仓位成功');
                 await requestPositionData();
             } else {
-                const response = await authFetch(`${API_BASE}/positions/${currentPositionInfo.id}`, {
+                const response = await requestWithAuth(`${API_BASE}/positions/${currentPositionInfo.id}`, {
                     method: 'PUT',
                     body: JSON.stringify(values)
                 });

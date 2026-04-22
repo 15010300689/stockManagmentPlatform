@@ -1,36 +1,48 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Layout, Menu, Button, Space, Tag, message, Spin } from 'antd';
 import type { MenuProps } from 'antd';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { getUsername, clearAuth, authFetch, setPermissionCodes } from '../auth';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { getUsername, clearAuth, setPermissionCodes } from '../auth';
+import { requestWithAuth } from '../api/client';
 import { menuItems as fallbackMenuItems } from '../config/menu';
 import { isMockEnabled } from '../mock/apiMock';
 
 const { Header, Sider, Content } = Layout;
 const API_BASE = '/api';
+const MENU_OPEN_KEYS_STORAGE = 'layout_menu_open_keys';
 
-interface MainLayoutProps {
-    children: React.ReactNode;
-}
+type MenuNode = {
+    key?: React.Key;
+    children?: MenuNode[];
+};
 
-function MainLayout({ children }: MainLayoutProps): JSX.Element {
+function MainLayout(): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const [menuItems, setMenuItems] = useState<MenuProps['items']>(fallbackMenuItems as MenuProps['items']);
     const [menuLoading, setMenuLoading] = useState(false);
+    const [openKeys, setOpenKeys] = useState<string[]>(() => {
+        try {
+            const raw = localStorage.getItem(MENU_OPEN_KEYS_STORAGE);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+        } catch {
+            return [];
+        }
+    });
     const mockEnabled = isMockEnabled();
 
     const loadMenus = async () => {
         setMenuLoading(true);
         try {
-            const res = await authFetch(`${API_BASE}/auth/menus`);
+            const res = await requestWithAuth(`${API_BASE}/auth/menus`);
             const data = await res.json();
             if (Array.isArray(data) && data.length > 0) {
                 setMenuItems(data);
             }
 
             // 同步刷新当前用户权限码，角色权限改动后无需重新登录即可生效
-            const pRes = await authFetch(`${API_BASE}/auth/permissions`);
+            const pRes = await requestWithAuth(`${API_BASE}/auth/permissions`);
             const pData = await pRes.json();
             if (Array.isArray(pData)) {
                 setPermissionCodes(pData);
@@ -46,15 +58,62 @@ function MainLayout({ children }: MainLayoutProps): JSX.Element {
         loadMenus();
     }, []);
 
+    const parentKeyMap = useMemo(() => {
+        const map = new Map<string, string>();
+        const walk = (items: MenuProps['items'], parentKey?: string) => {
+            (items || []).forEach((item) => {
+                if (!item || typeof item !== 'object' || !('key' in item)) return;
+                const node = item as unknown as MenuNode;
+                const key = typeof node.key === 'string' ? node.key : String(node.key ?? '');
+                if (!key) return;
+                if (parentKey) map.set(key, parentKey);
+                if (Array.isArray(node.children) && node.children.length > 0) {
+                    walk(node.children as MenuProps['items'], key);
+                }
+            });
+        };
+        walk(menuItems);
+        return map;
+    }, [menuItems]);
+
+    useEffect(() => {
+        const nextAncestors: string[] = [];
+        let current = parentKeyMap.get(location.pathname);
+        while (current) {
+            nextAncestors.unshift(current);
+            current = parentKeyMap.get(current);
+        }
+        if (nextAncestors.length === 0) return;
+        setOpenKeys((prev) => {
+            const merged = Array.from(new Set([...prev, ...nextAncestors]));
+            try {
+                localStorage.setItem(MENU_OPEN_KEYS_STORAGE, JSON.stringify(merged));
+            } catch {
+                // ignore storage write errors
+            }
+            return merged;
+        });
+    }, [location.pathname, parentKeyMap]);
+
     const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
         if (typeof key === 'string' && key.startsWith('/')) {
             navigate(key);
         }
     };
 
+    const handleOpenChange: MenuProps['onOpenChange'] = (keys) => {
+        const nextKeys = keys.map((key) => String(key));
+        setOpenKeys(nextKeys);
+        try {
+            localStorage.setItem(MENU_OPEN_KEYS_STORAGE, JSON.stringify(nextKeys));
+        } catch {
+            // ignore storage write errors
+        }
+    };
+
     const handleLogout = async () => {
         try {
-            await authFetch(`${API_BASE}/logout`, { method: 'POST' });
+            await requestWithAuth(`${API_BASE}/logout`, { method: 'POST' });
         } catch (error) {
             console.error('登出失败:', error);
         } finally {
@@ -96,15 +155,17 @@ function MainLayout({ children }: MainLayoutProps): JSX.Element {
                         <Menu
                             mode="inline"
                             selectedKeys={[location.pathname]}
+                            openKeys={openKeys}
                             style={{ height: '100%', borderRight: 0, overflowY: 'auto' }}
                             onClick={handleMenuClick}
+                            onOpenChange={handleOpenChange}
                             items={menuItems}
                         />
                     )}
                 </Sider>
                 <Layout style={{ overflow: 'hidden', minHeight: '100vh', display: 'flex', paddingBottom: '58px' }}>
                     <Content style={{ background: '#f0f2f5', padding: '24px', minHeight: 200, flex: 1, overflowY: 'auto' }}>
-                        {children}
+                        <Outlet />
                     </Content>
                 </Layout>
             </Layout>
