@@ -12,12 +12,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class MenuService {
-
     @Autowired
     private MenuMapper menuMapper;
     @Autowired
@@ -25,7 +26,12 @@ public class MenuService {
 
     public List<Map<String, Object>> getUserMenuTree(Long userId) {
         List<Menu> menus = menuMapper.findUserMenus(userId);
-        return buildTree(menus);
+        List<String> permissionCodes = permissionMapper.findUserPermissionCodes(userId);
+        Set<String> permissionSet = permissionCodes == null
+                ? Collections.emptySet()
+                : new HashSet<>(permissionCodes);
+        List<Menu> filteredMenus = filterMenusByPermission(menus, permissionSet);
+        return buildTree(filteredMenus);
     }
 
     public List<Menu> getAllMenus() {
@@ -122,6 +128,56 @@ public class MenuService {
         return roots;
     }
 
+    private List<Menu> filterMenusByPermission(List<Menu> menus, Set<String> permissionCodes) {
+        if (menus == null || menus.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<Long, List<Menu>> childrenMap = new HashMap<>();
+        for (Menu menu : menus) {
+            Long parentId = menu.getParentId() == null ? 0L : menu.getParentId();
+            childrenMap.computeIfAbsent(parentId, k -> new ArrayList<>()).add(menu);
+        }
+
+        Set<Long> keepIds = new HashSet<>();
+        List<Menu> roots = childrenMap.getOrDefault(0L, Collections.emptyList());
+        for (Menu root : roots) {
+            markKeepMenus(root, childrenMap, permissionCodes, keepIds);
+        }
+
+        List<Menu> result = new ArrayList<>();
+        for (Menu menu : menus) {
+            if (keepIds.contains(menu.getId())) {
+                result.add(menu);
+            }
+        }
+        return result;
+    }
+
+    private boolean markKeepMenus(Menu menu,
+                                  Map<Long, List<Menu>> childrenMap,
+                                  Set<String> permissionCodes,
+                                  Set<Long> keepIds) {
+        boolean hasAccessibleChild = false;
+        List<Menu> children = childrenMap.getOrDefault(menu.getId(), Collections.emptyList());
+        for (Menu child : children) {
+            if (markKeepMenus(child, childrenMap, permissionCodes, keepIds)) {
+                hasAccessibleChild = true;
+            }
+        }
+
+        boolean selfAllowed = hasMenuPermission(menu, permissionCodes);
+        if (selfAllowed || hasAccessibleChild) {
+            keepIds.add(menu.getId());
+            return true;
+        }
+        return false;
+    }
+
+    private boolean hasMenuPermission(Menu menu, Set<String> permissionCodes) {
+        String requiredCode = menu.getRequiredPermissionCode();
+        return requiredCode == null || requiredCode.trim().isEmpty() || permissionCodes.contains(requiredCode.trim());
+    }
+
     private Map<String, Object> toMenuItem(Menu menu, Map<Long, List<Menu>> childrenMap) {
         Map<String, Object> item = new HashMap<>();
         item.put("id", menu.getId());
@@ -131,6 +187,7 @@ public class MenuService {
                 : menu.getName());
         item.put("name", menu.getName());
         item.put("path", menu.getPath());
+        item.put("requiredPermissionCode", menu.getRequiredPermissionCode());
 
         List<Menu> children = childrenMap.get(menu.getId());
         if (children != null && !children.isEmpty()) {

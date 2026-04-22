@@ -3,16 +3,45 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.stock.mapper.WarehouseMapper">
 
+    <sql id="WarehouseBaseColumns">
+        id, code, name, status, address, contact, phone, create_time
+    </sql>
+
+    <sql id="WarehouseFilterWhere">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (code LIKE CONCAT('%', #{keyword}, '%') OR name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+    </sql>
+
     <select id="findAll" resultType="com.stock.entity.Warehouse">
-        SELECT id, code, name, status, address, contact, phone, create_time FROM warehouse ORDER BY id
+        SELECT <include refid="WarehouseBaseColumns" /> FROM warehouse ORDER BY id
+    </select>
+
+    <select id="findPageByCondition" resultType="com.stock.entity.Warehouse">
+        SELECT <include refid="WarehouseBaseColumns" />
+        FROM warehouse
+        <include refid="WarehouseFilterWhere" />
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByCondition" resultType="int">
+        SELECT COUNT(*)
+        FROM warehouse
+        <include refid="WarehouseFilterWhere" />
     </select>
 
     <select id="findById" resultType="com.stock.entity.Warehouse">
-        SELECT id, code, name, status, address, contact, phone, create_time FROM warehouse WHERE id = #{id}
+        SELECT <include refid="WarehouseBaseColumns" /> FROM warehouse WHERE id = #{id}
     </select>
 
     <select id="findByCode" resultType="com.stock.entity.Warehouse">
-        SELECT id, code, name, status, address, contact, phone, create_time
+        SELECT <include refid="WarehouseBaseColumns" />
         FROM warehouse
         WHERE code = #{code}
         LIMIT 1

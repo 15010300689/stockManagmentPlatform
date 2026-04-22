@@ -1,6 +1,8 @@
 /Applications/heyanzhen/study/stockManagmentPlatform/server/src/main/java/com/stock/entity/Warehouse.java
+/Applications/heyanzhen/study/stockManagmentPlatform/server/src/main/java/com/stock/service/UserService.java
 /Applications/heyanzhen/study/stockManagmentPlatform/server/src/main/java/com/stock/entity/InventoryLog.java
 /Applications/heyanzhen/study/stockManagmentPlatform/server/src/main/java/com/stock/mapper/WarehouseMapper.java
+/Applications/heyanzhen/study/stockManagmentPlatform/server/src/main/java/com/stock/controller/UserController.java
 /Applications/heyanzhen/study/stockManagmentPlatform/server/src/main/java/com/stock/controller/ProductController.java
 /Applications/heyanzhen/study/stockManagmentPlatform/server/src/main/java/com/stock/config/WebConfig.java
 /Applications/heyanzhen/study/stockManagmentPlatform/server/src/main/java/com/stock/config/GlobalExceptionHandler.java

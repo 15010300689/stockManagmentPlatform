@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Layout, Menu, Button, Space, Tag, message, Spin } from 'antd';
+import { Layout, Menu, Button, Space, Tag, message, Spin, Empty } from 'antd';
 import type { MenuProps } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { getUsername, clearAuth, setPermissionCodes } from '../auth';
+import { getUsername, clearAuth, setPermissionCodes, setMenuPaths, extractMenuPaths } from '../auth';
 import { requestWithAuth } from '../api/client';
-import { menuItems as fallbackMenuItems } from '../config/menu';
 import { isMockEnabled } from '../mock/apiMock';
 
 const { Header, Sider, Content } = Layout;
@@ -19,7 +18,7 @@ type MenuNode = {
 function MainLayout(): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
-    const [menuItems, setMenuItems] = useState<MenuProps['items']>(fallbackMenuItems as MenuProps['items']);
+    const [menuItems, setMenuItems] = useState<MenuProps['items']>([]);
     const [menuLoading, setMenuLoading] = useState(false);
     const [openKeys, setOpenKeys] = useState<string[]>(() => {
         try {
@@ -37,8 +36,12 @@ function MainLayout(): JSX.Element {
         try {
             const res = await requestWithAuth(`${API_BASE}/auth/menus`);
             const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
+            if (Array.isArray(data)) {
                 setMenuItems(data);
+                setMenuPaths(extractMenuPaths(data));
+            } else {
+                setMenuItems([]);
+                setMenuPaths([]);
             }
 
             // 同步刷新当前用户权限码，角色权限改动后无需重新登录即可生效
@@ -48,7 +51,9 @@ function MainLayout(): JSX.Element {
                 setPermissionCodes(pData);
             }
         } catch (e) {
-            console.error('加载动态菜单失败，使用本地兜底菜单', e);
+            setMenuItems([]);
+            setMenuPaths([]);
+            console.error('加载动态菜单失败', e);
         } finally {
             setMenuLoading(false);
         }
@@ -151,6 +156,10 @@ function MainLayout(): JSX.Element {
                 <Sider width={220} style={{ background: '#fff', maxHeight: '100%', overflowY: 'hidden' }}>
                     {menuLoading ? (
                         <div style={{ padding: 24, textAlign: 'center' }}><Spin /></div>
+                    ) : !menuItems || menuItems.length === 0 ? (
+                        <div style={{ padding: 24 }}>
+                            <Empty description="暂无可访问菜单" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                        </div>
                     ) : (
                         <Menu
                             mode="inline"

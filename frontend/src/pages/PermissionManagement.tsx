@@ -11,6 +11,7 @@ import {
     Switch,
     message
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { requestWithAuth } from '../api/client';
 
 const API_BASE = '/api';
@@ -20,6 +21,7 @@ interface MenuItem {
     parentId?: number;
     name: string;
     path: string;
+    requiredPermissionCode?: string;
     icon?: string;
     sortNo?: number;
     visible: number;
@@ -32,14 +34,22 @@ interface MenuFormValues {
     parentId: number;
     name: string;
     path: string;
+    requiredPermissionCode?: string;
     icon?: string;
     sortNo: number;
     visible: boolean;
     status: boolean;
 }
 
+interface PermissionItem {
+    id: number;
+    permissionCode: string;
+    permissionName: string;
+}
+
 function PermissionManagement(): JSX.Element {
     const [menus, setMenus] = useState<MenuItem[]>([]);
+    const [permissions, setPermissions] = useState<PermissionItem[]>([]);
     const [loading, setLoading] = useState(false);
 
     const [editing, setEditing] = useState<MenuItem | null>(null);
@@ -62,6 +72,16 @@ function PermissionManagement(): JSX.Element {
 
     useEffect(() => {
         loadMenus();
+        const loadPermissions = async () => {
+            try {
+                const res = await requestWithAuth(`${API_BASE}/admin/permissions`);
+                const data = await res.json();
+                setPermissions(Array.isArray(data) ? data : []);
+            } catch (e) {
+                message.error('加载权限点失败: ' + (e as Error).message);
+            }
+        };
+        void loadPermissions();
     }, []);
 
     const menuByParent = useMemo(() => {
@@ -103,6 +123,7 @@ function PermissionManagement(): JSX.Element {
             parentId: 0,
             name: '',
             path: '',
+            requiredPermissionCode: undefined,
             icon: '',
             sortNo: 0,
             visible: true,
@@ -118,6 +139,7 @@ function PermissionManagement(): JSX.Element {
             parentId: parent.id,
             name: '',
             path: '',
+            requiredPermissionCode: undefined,
             icon: '',
             sortNo: 0,
             visible: true,
@@ -133,6 +155,7 @@ function PermissionManagement(): JSX.Element {
             parentId: record.parentId ?? 0,
             name: record.name,
             path: record.path,
+            requiredPermissionCode: record.requiredPermissionCode || undefined,
             icon: record.icon,
             sortNo: record.sortNo ?? 0,
             visible: record.visible === 1,
@@ -148,6 +171,7 @@ function PermissionManagement(): JSX.Element {
                 parentId: values.parentId,
                 name: values.name,
                 path: values.path,
+                requiredPermissionCode: values.requiredPermissionCode || null,
                 icon: values.icon,
                 sortNo: values.sortNo,
                 visible: values.visible ? 1 : 0,
@@ -183,7 +207,7 @@ function PermissionManagement(): JSX.Element {
         setLockedParentMenu(null);
     };
 
-    const columns = [
+    const columns: ColumnsType<MenuItem> = [
         {
             title: '菜单名称',
             dataIndex: 'name',
@@ -198,6 +222,14 @@ function PermissionManagement(): JSX.Element {
             )
         },
         { title: '路由路径', dataIndex: 'path', key: 'path', width: 220, align: 'center' },
+        {
+            title: '所需权限码',
+            dataIndex: 'requiredPermissionCode',
+            key: 'requiredPermissionCode',
+            width: 220,
+            align: 'center',
+            render: (value: string | undefined) => value || '-'
+        },
         { title: '父级ID', dataIndex: 'parentId', key: 'parentId', width: 100, align: 'center' },
         { title: '排序', dataIndex: 'sortNo', key: 'sortNo', width: 80, align: 'center' },
         {
@@ -274,6 +306,16 @@ function PermissionManagement(): JSX.Element {
                     </Form.Item>
                     <Form.Item label="路由路径" name="path" rules={[{ required: true, message: '请输入路由路径' }]}>
                         <Input placeholder="如 /permission/menu" />
+                    </Form.Item>
+                    <Form.Item label="所需权限码" name="requiredPermissionCode">
+                        <Select
+                            allowClear
+                            placeholder="不填表示目录菜单或公开菜单"
+                            options={permissions.map((item) => ({
+                                value: item.permissionCode,
+                                label: `${item.permissionName} (${item.permissionCode})`
+                            }))}
+                        />
                     </Form.Item>
                     <Form.Item label="图标" name="icon">
                         <Input placeholder="可填 emoji，如 🔗" />

@@ -1,4 +1,3 @@
-import { menuItems } from '../config/menu';
 import { mockProducts } from './productManagement';
 import { roleList } from './roleList';
 import { storeList } from './storeList';
@@ -12,6 +11,7 @@ interface MenuRecord {
     parentId: number;
     name: string;
     path: string;
+    requiredPermissionCode?: string;
     icon?: string;
     sortNo: number;
     visible: number;
@@ -49,12 +49,17 @@ const userDb = userList.map((u) => ({
 }));
 
 const permissionDb: PermissionRecord[] = [
+    { id: 0, permissionName: '查看商品', permissionCode: 'product:view', method: 'GET', path: '/api/products' },
     { id: 1, permissionName: '新增商品', permissionCode: 'product:add', method: 'POST', path: '/api/product' },
     { id: 2, permissionName: '编辑商品', permissionCode: 'product:edit', method: 'PUT', path: '/api/product' },
     { id: 3, permissionName: '删除商品', permissionCode: 'product:delete', method: 'DELETE', path: '/api/product' },
     { id: 4, permissionName: '查看库存', permissionCode: 'product:detail', method: 'GET', path: '/api/product' },
     { id: 5, permissionName: '库存统计', permissionCode: 'product:statistics', method: 'GET', path: '/api/statistics' },
     { id: 6, permissionName: '低库存预警', permissionCode: 'product:lowstock', method: 'GET', path: '/api/low-stock' },
+    { id: 7, permissionName: '查看仓库', permissionCode: 'inventory:stores:view', method: 'GET', path: '/api/stores' },
+    { id: 8, permissionName: '查看仓位', permissionCode: 'inventory:positions:view', method: 'GET', path: '/api/positions' },
+    { id: 9, permissionName: '菜单查看', permissionCode: 'admin:menu:view', method: 'GET', path: '/api/admin/menus' },
+    { id: 10, permissionName: '角色查看', permissionCode: 'admin:role:view', method: 'GET', path: '/api/admin/roles' },
 ];
 
 const roleMenuMap = new Map<number, number[]>([
@@ -65,21 +70,21 @@ const roleMenuMap = new Map<number, number[]>([
 
 const rolePermissionMap = new Map<number, number[]>([
     [1, permissionDb.map((p) => p.id)],
-    [2, [1, 2, 3, 4, 5, 6]],
-    [9, [4, 5]],
+    [2, [0, 1, 2, 3, 4, 5, 6, 7, 8]],
+    [9, [0, 4, 5, 7, 8]],
 ]);
 
 let menuDb: MenuRecord[] = [
     { id: 1, parentId: 0, name: '权限管理', path: '/permission', icon: '🔒', sortNo: 1, visible: 1, status: 1 },
-    { id: 2, parentId: 1, name: '角色管理', path: '/role', icon: '👥', sortNo: 1, visible: 1, status: 1 },
-    { id: 3, parentId: 1, name: '用户管理', path: '/user', icon: '👨‍👩‍👧‍👦', sortNo: 2, visible: 1, status: 1 },
-    { id: 4, parentId: 1, name: '菜单配置', path: '/permission/menu', icon: '🔗', sortNo: 3, visible: 1, status: 1 },
-    { id: 5, parentId: 0, name: '商品管理', path: '/product', icon: '📦', sortNo: 2, visible: 1, status: 1 },
-    { id: 6, parentId: 0, name: '仓库管理', path: '/storeManagement', icon: '🏠', sortNo: 3, visible: 1, status: 1 },
-    { id: 7, parentId: 0, name: '仓位管理', path: '/positionManagement', icon: '🗺️', sortNo: 4, visible: 1, status: 1 },
-    { id: 8, parentId: 0, name: '计量单位管理', path: '/unitManagement', icon: '🧪', sortNo: 5, visible: 1, status: 1 },
-    { id: 9, parentId: 0, name: '货币管理', path: '/currencyManagement', icon: '🪙', sortNo: 6, visible: 1, status: 1 },
-    { id: 10, parentId: 0, name: '运输途径管理', path: '/transportManagement', icon: '✈️', sortNo: 7, visible: 1, status: 1 },
+    { id: 2, parentId: 1, name: '角色管理', path: '/role', requiredPermissionCode: 'admin:role:view', icon: '👥', sortNo: 1, visible: 1, status: 1 },
+    { id: 3, parentId: 1, name: '用户管理', path: '/user', requiredPermissionCode: 'admin:role:view', icon: '👨‍👩‍👧‍👦', sortNo: 2, visible: 1, status: 1 },
+    { id: 4, parentId: 1, name: '菜单配置', path: '/permission/menu', requiredPermissionCode: 'admin:menu:view', icon: '🔗', sortNo: 3, visible: 1, status: 1 },
+    { id: 5, parentId: 0, name: '商品管理', path: '/product', requiredPermissionCode: 'product:view', icon: '📦', sortNo: 2, visible: 1, status: 1 },
+    { id: 6, parentId: 0, name: '仓库管理', path: '/storeManagement', requiredPermissionCode: 'inventory:stores:view', icon: '🏠', sortNo: 3, visible: 1, status: 1 },
+    { id: 7, parentId: 0, name: '仓位管理', path: '/positionManagement', requiredPermissionCode: 'inventory:positions:view', icon: '🗺️', sortNo: 4, visible: 1, status: 1 },
+    { id: 8, parentId: 0, name: '计量单位管理', path: '/unitManagement', requiredPermissionCode: 'admin:menu:view', icon: '🧪', sortNo: 5, visible: 1, status: 1 },
+    { id: 9, parentId: 0, name: '货币管理', path: '/currencyManagement', requiredPermissionCode: 'admin:menu:view', icon: '🪙', sortNo: 6, visible: 1, status: 1 },
+    { id: 10, parentId: 0, name: '运输途径管理', path: '/transportManagement', requiredPermissionCode: 'admin:menu:view', icon: '✈️', sortNo: 7, visible: 1, status: 1 },
 ];
 
 const permissionCodeById = new Map(permissionDb.map((p) => [p.id, p.permissionCode]));
@@ -153,6 +158,7 @@ function parseBody(body: BodyInit | null | undefined, contentType = ''): Record<
 
 function toMenuTreeByRole(roleIds: number[]) {
     const allowIds = new Set<number>();
+    const permissionCodes = new Set(getPermissionCodesByRoleIds(roleIds));
     roleIds.forEach((roleId) => {
         (roleMenuMap.get(roleId) || []).forEach((id) => allowIds.add(id));
     });
@@ -160,8 +166,33 @@ function toMenuTreeByRole(roleIds: number[]) {
         .filter((m) => m.visible === 1 && m.status === 1 && allowIds.has(m.id))
         .sort((a, b) => a.sortNo - b.sortNo);
 
+    const menuById = new Map(visibleMenus.map((m) => [m.id, m]));
+    const childrenByParent = new Map<number, MenuRecord[]>();
+    visibleMenus.forEach((menu) => {
+        if (!childrenByParent.has(menu.parentId)) {
+            childrenByParent.set(menu.parentId, []);
+        }
+        childrenByParent.get(menu.parentId)?.push(menu);
+    });
+
+    const keepIds = new Set<number>();
+    const markKeep = (menu: MenuRecord): boolean => {
+        const children = childrenByParent.get(menu.id) || [];
+        const hasChild = children.some((child) => markKeep(child));
+        const selfAllowed = !menu.requiredPermissionCode || permissionCodes.has(menu.requiredPermissionCode);
+        if (selfAllowed || hasChild) {
+            keepIds.add(menu.id);
+            return true;
+        }
+        return false;
+    };
+    (childrenByParent.get(0) || []).forEach((root) => {
+        markKeep(root);
+    });
+
     const byParent = new Map<number, MenuRecord[]>();
     visibleMenus.forEach((m) => {
+        if (!keepIds.has(m.id)) return;
         if (!byParent.has(m.parentId)) byParent.set(m.parentId, []);
         byParent.get(m.parentId)?.push(m);
     });
@@ -178,7 +209,7 @@ function toMenuTreeByRole(roleIds: number[]) {
         });
     };
     const tree = build(0);
-    return tree.length > 0 ? tree : menuItems;
+    return tree;
 }
 
 export function isMockEnabled(): boolean {
@@ -356,6 +387,9 @@ export async function mockApiFetch(url: string, options: RequestInit = {}): Prom
             parentId: Number(body.parentId || 0),
             name: String(body.name || ''),
             path: String(body.path || ''),
+            requiredPermissionCode: body.requiredPermissionCode != null
+                ? String(body.requiredPermissionCode || '').trim() || undefined
+                : undefined,
             icon: String(body.icon || ''),
             sortNo: Number(body.sortNo || 0),
             visible: Number(body.visible ?? 1),
@@ -373,6 +407,9 @@ export async function mockApiFetch(url: string, options: RequestInit = {}): Prom
             parentId: Number(body.parentId ?? target.parentId),
             name: String(body.name ?? target.name),
             path: String(body.path ?? target.path),
+            requiredPermissionCode: body.requiredPermissionCode !== undefined
+                ? (String(body.requiredPermissionCode || '').trim() || undefined)
+                : target.requiredPermissionCode,
             icon: String(body.icon ?? (target.icon || '')),
             sortNo: Number(body.sortNo ?? target.sortNo),
             visible: Number(body.visible ?? target.visible),
@@ -449,6 +486,61 @@ export async function mockApiFetch(url: string, options: RequestInit = {}): Prom
             pageNo,
             pageSize
         });
+    }
+
+    if (pathname === '/api/user' && method === 'POST') {
+        const userName = String(body.userName || '').trim();
+        const roleIds = Array.isArray(body.roleIds) ? body.roleIds.map((item) => Number(item)) : [];
+        if (!userName) {
+            return jsonResponse({ success: false, message: '用户名不能为空(mock)' }, 400);
+        }
+        if (roleIds.length === 0) {
+            return jsonResponse({ success: false, message: '请至少选择一个角色(mock)' }, 400);
+        }
+        const conflict = userDb.find((item) => item.userName === userName);
+        if (conflict) {
+            return jsonResponse({ success: false, message: '用户名已存在(mock)' }, 400);
+        }
+        const nextId = Math.max(0, ...userDb.map((item) => Number(item.id) || 0)) + 1;
+        const roles = roleDb
+            .filter((role) => roleIds.includes(role.id))
+            .map((role) => ({ id: role.id, roleName: role.roleName }));
+        userDb.unshift({
+            id: nextId,
+            userName,
+            createTime: new Date().toISOString(),
+            roleList: roles
+        });
+        return jsonResponse({ success: true, message: '新增用户成功(mock)' });
+    }
+
+    const updateUserMatch = pathname.match(/^\/api\/user\/(\d+)$/);
+    if (updateUserMatch && method === 'PUT') {
+        const userId = Number(updateUserMatch[1]);
+        const userName = String(body.userName || '').trim();
+        const roleIds = Array.isArray(body.roleIds) ? body.roleIds.map((item) => Number(item)) : [];
+        const target = userDb.find((item) => item.id === userId);
+        if (!target) {
+            return jsonResponse({ success: false, message: '用户不存在(mock)' }, 404);
+        }
+        if (!userName) {
+            return jsonResponse({ success: false, message: '用户名不能为空(mock)' }, 400);
+        }
+        if (roleIds.length === 0) {
+            return jsonResponse({ success: false, message: '请至少选择一个角色(mock)' }, 400);
+        }
+        const conflict = userDb.find((item) => item.id !== userId && item.userName === userName);
+        if (conflict) {
+            return jsonResponse({ success: false, message: '用户名已存在(mock)' }, 400);
+        }
+        const roles = roleDb
+            .filter((role) => roleIds.includes(role.id))
+            .map((role) => ({ id: role.id, roleName: role.roleName }));
+        Object.assign(target, {
+            userName,
+            roleList: roles
+        });
+        return jsonResponse({ success: true, message: '编辑用户成功(mock)' });
     }
 
     if (pathname === '/api/stores' && method === 'GET') {

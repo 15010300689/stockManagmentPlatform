@@ -5,6 +5,7 @@ public class Menu {
     private Long parentId;
     private String name;
     private String path;
+    private String requiredPermissionCode;
     private String icon;
     private Integer sortNo;
     private Integer visible;
@@ -18,6 +19,8 @@ public class Menu {
     public void setName(String name) { this.name = name; }
     public String getPath() { return path; }
     public void setPath(String path) { this.path = path; }
+    public String getRequiredPermissionCode() { return requiredPermissionCode; }
+    public void setRequiredPermissionCode(String requiredPermissionCode) { this.requiredPermissionCode = requiredPermissionCode; }
     public String getIcon() { return icon; }
     public void setIcon(String icon) { this.icon = icon; }
     public Integer getSortNo() { return sortNo; }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { isAuthenticated } from '../auth';
+import { getMenuPaths, isAuthenticated } from '../auth';
 
 interface PrivateRouteProps {
     children?: JSX.Element;
@@ -8,9 +8,29 @@ interface PrivateRouteProps {
 
 function PrivateRoute({ children }: PrivateRouteProps): JSX.Element {
     const location = useLocation();
-    return isAuthenticated()
-        ? (children || <Outlet />)
-        : <Navigate to="/login" state={{ from: location }} replace />;
+    const menuPaths = getMenuPaths();
+    const currentPath = location.pathname;
+    const isPublicAuthedPage = currentPath === '/no-access' || currentPath === '/welcome';
+
+    if (!isAuthenticated()) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    if (isPublicAuthedPage) {
+        return children || <Outlet />;
+    }
+
+    if (menuPaths.length === 0) {
+        return <Navigate to="/no-access" replace />;
+    }
+
+    const isPermissionEntry = currentPath === '/permission' && menuPaths.includes('/permission/menu');
+    const isAllowed = menuPaths.includes(currentPath) || isPermissionEntry;
+    if (!isAllowed) {
+        return <Navigate to="/no-access" replace />;
+    }
+
+    return children || <Outlet />;
 }
 
 export default PrivateRoute;

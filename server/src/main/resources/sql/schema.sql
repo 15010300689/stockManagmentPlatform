@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS sys_menu (
   parent_id BIGINT DEFAULT 0 COMMENT '父菜单ID，0表示根节点',
   name      VARCHAR(100) NOT NULL COMMENT '菜单名称',
   path      VARCHAR(255) NOT NULL COMMENT '前端路由路径',
+  required_permission_code VARCHAR(100) DEFAULT NULL COMMENT '访问该菜单所需权限码，为空表示目录或公开菜单',
   icon      VARCHAR(50) DEFAULT NULL COMMENT '菜单图标(可存emoji或icon key)',
   sort_no   INT NOT NULL DEFAULT 0 COMMENT '排序',
   visible   TINYINT NOT NULL DEFAULT 1 COMMENT '是否可见：1可见 0隐藏',

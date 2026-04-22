@@ -211,7 +211,7 @@ function LowStockModal({ visible, onClose, onOpenStockIn, onOpenInventory }: Low
                 </Button>,
             ]}
             width={880}
-            destroyOnClose
+            destroyOnHidden
         >
             <Alert
                 type="info"

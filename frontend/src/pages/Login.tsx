@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
 import type { FormInstance } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { requestRaw, saveAuth } from '../auth';
+import { requestRaw, requestWithAuth, saveAuth, setMenuPaths, extractMenuPaths } from '../auth';
 import { notifyErrorOnce } from '../http';
 
 const API_BASE = '/api';
@@ -27,14 +27,18 @@ function Login(): JSX.Element {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
-    const getRedirectPath = (): string => {
+    const getRedirectPath = (menuPaths: string[]): string => {
+        const defaultPath = '/welcome';
         const redirect = searchParams.get('redirect');
-        if (!redirect) return '/product';
+        if (!redirect) return defaultPath;
         const decoded = decodeURIComponent(redirect);
-        if (decoded.startsWith('/') && !decoded.startsWith('//')) {
+        if (decoded === '/welcome') {
             return decoded;
         }
-        return '/product';
+        if (decoded.startsWith('/') && !decoded.startsWith('//') && menuPaths.includes(decoded)) {
+            return decoded;
+        }
+        return defaultPath;
     };
 
     const handleSubmit = async (values: LoginForm) => {
@@ -60,8 +64,19 @@ function Login(): JSX.Element {
                     data.roleList || [],
                     data.permissionCodes || []
                 );
+                let menuPaths: string[] = [];
+                try {
+                    const menuResponse = await requestWithAuth(`${API_BASE}/auth/menus`);
+                    const menuTree = await menuResponse.json();
+                    if (Array.isArray(menuTree)) {
+                        menuPaths = extractMenuPaths(menuTree);
+                        setMenuPaths(menuPaths);
+                    }
+                } catch {
+                    // ignore menu prefetch errors, MainLayout will retry
+                }
                 message.success('登录成功');
-                navigate(getRedirectPath(), { replace: true });
+                navigate(getRedirectPath(menuPaths), { replace: true });
             } else {
                 notifyErrorOnce(data.message || '登录失败，请检查用户名和密码', {
                     dedupKey: 'login-failed'

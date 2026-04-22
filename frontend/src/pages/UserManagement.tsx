@@ -8,6 +8,7 @@ import AddUserModal from '../components/UserManagement/AddUserModal';
 import { requestWithAuth } from '../api/client';
 
 import { userList } from '../mock/userList';
+import { roleList } from '../mock/roleList';
 import RenderOverTag from '../components/RenderOverTag';
 import type { UserItem } from '../types/user';
 
@@ -18,6 +19,16 @@ interface UserListResponse {
     total?: number;
     pageNo?: number;
     pageSize?: number;
+}
+
+interface UserRoleOption {
+    id: number;
+    roleName: string;
+}
+
+interface UserFormValues {
+    userName: string;
+    roleList: number[];
 }
 
 function UserManagement(): JSX.Element {
@@ -85,6 +96,8 @@ function UserManagement(): JSX.Element {
     const [currentUserInfo, setCurrentUserInfo] = useState<Partial<UserItem>>({});
     const [users, setUsers] = useState<UserItem[]>(userList);
     const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [roleOptions, setRoleOptions] = useState<UserRoleOption[]>(roleList);
     const [pageNo, setPageNo] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(userList.length);
@@ -135,6 +148,31 @@ function UserManagement(): JSX.Element {
         void requestTableData();
     }, [requestTableData]);
 
+    useEffect(() => {
+        const loadRoleOptions = async () => {
+            try {
+                const response = await requestWithAuth(`${API_BASE}/admin/roles`);
+                if (!response.ok) {
+                    throw new Error(`请求失败(${response.status})`);
+                }
+                const payload = await response.json();
+                if (Array.isArray(payload)) {
+                    setRoleOptions(
+                        payload
+                            .map((item) => ({
+                                id: Number(item.id),
+                                roleName: String(item.roleName || '')
+                            }))
+                            .filter((item) => item.id > 0 && item.roleName)
+                    );
+                }
+            } catch (error) {
+                console.warn('load role options failed, fallback to mock roles:', error);
+            }
+        };
+        void loadRoleOptions();
+    }, []);
+
     const onSearch = (userName: string) => {
         setQueryParams({ userName });
         setPageNo(1);
@@ -155,6 +193,62 @@ function UserManagement(): JSX.Element {
         setIsAddModalOpen(true);
     };
     const onDeleteUser = (_record: UserItem) => {};
+
+    const closeModal = () => {
+        setMode('add');
+        setCurrentUserInfo({});
+        setIsAddModalOpen(false);
+    };
+
+    const onSubmitUser = async (values: UserFormValues, submitMode: 'add' | 'edit') => {
+        const userName = values.userName.trim();
+        const roleIds = values.roleList;
+        if (!userName) {
+            message.error('请输入用户名称');
+            return;
+        }
+        if (!Array.isArray(roleIds) || roleIds.length === 0) {
+            message.error('请选择用户角色');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            let response: Response;
+            if (submitMode === 'add') {
+                response = await requestWithAuth(`${API_BASE}/user`, {
+                    method: 'POST',
+                    body: JSON.stringify({ userName, roleIds })
+                });
+            } else {
+                if (!currentUserInfo.id) {
+                    message.error('缺少用户ID，无法编辑');
+                    return;
+                }
+                response = await requestWithAuth(`${API_BASE}/user/${currentUserInfo.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ userName, roleIds })
+                });
+            }
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload.success === false) {
+                throw new Error(payload.message || `请求失败(${response.status})`);
+            }
+
+            message.success(submitMode === 'add' ? '新增用户成功' : '编辑用户成功');
+            closeModal();
+            if (submitMode === 'add') {
+                setPageNo(1);
+            } else {
+                void requestTableData();
+            }
+        } catch (error) {
+            message.error((error as Error).message || '保存用户失败');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     return (
         <Card title="用户管理">
@@ -181,12 +275,10 @@ function UserManagement(): JSX.Element {
                 mode={mode}
                 isOpen={isAddModalOpen}
                 currentUserInfo={currentUserInfo}
-                onCancel={() => {
-                    setMode('add');
-                    setCurrentUserInfo({});
-                    setIsAddModalOpen(false);
-                }}
-                onUpdate={() => {}}
+                roleOptions={roleOptions}
+                submitting={submitting}
+                onCancel={closeModal}
+                onSubmit={onSubmitUser}
             />
         </Card>
     );

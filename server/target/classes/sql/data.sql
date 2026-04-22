@@ -3,6 +3,10 @@
 -- ========================================
 USE stock;
 
+-- 兼容增量升级：补齐菜单权限字段
+ALTER TABLE sys_menu
+  ADD COLUMN IF NOT EXISTS required_permission_code VARCHAR(100) DEFAULT NULL COMMENT '访问该菜单所需权限码，为空表示目录或公开菜单';
+
 -- 默认角色
 INSERT IGNORE INTO sys_role (id, role_name, role_code, description) VALUES
   (1, '系统管理员', 'admin',   '拥有系统所有权限'),
@@ -21,18 +25,27 @@ INSERT IGNORE INTO sys_user_role (user_id, role_id) VALUES
   (2, 3),
   (3, 2);
 
--- 动态菜单
-INSERT IGNORE INTO sys_menu (id, parent_id, name, path, icon, sort_no, visible, status) VALUES
-  (1, 0, '权限管理', '/', '🔒', 1, 1, 1),
-  (2, 1, '角色管理', '/role', '👥', 1, 1, 1),
-  (3, 1, '用户管理', '/user', '👨‍👩‍👧‍👦', 2, 1, 1),
-  (4, 1, '权限管理', '/permission', '🔗', 3, 1, 1),
-  (5, 0, '商品管理', '/product', '📦', 2, 1, 1),
-  (6, 0, '仓库管理', '/storeManagement', '🏠', 3, 1, 1),
-  (7, 0, '仓位管理', '/positionManagement', '🗺️', 4, 1, 1),
-  (8, 0, '计量单位管理', '/unitManagement', '🧪', 5, 1, 1),
-  (9, 0, '货币管理', '/currencyManagement', '🪙', 6, 1, 1),
-  (10, 0, '运输途径管理', '/transportManagement', '✈️', 7, 1, 1);
+-- 动态菜单（可重复执行，会同步更新 required_permission_code）
+INSERT INTO sys_menu (id, parent_id, name, path, required_permission_code, icon, sort_no, visible, status) VALUES
+  (1, 0, '权限管理', '/permission', 'admin:menu:view', '🔒', 1, 1, 1),
+  (2, 1, '角色管理', '/role', 'admin:role:view', '👥', 1, 1, 1),
+  (3, 1, '用户管理', '/user', 'admin:role:view', '👨‍👩‍👧‍👦', 2, 1, 1),
+  (4, 1, '菜单配置', '/permission/menu', 'admin:menu:view', '🔗', 3, 1, 1),
+  (5, 0, '商品管理', '/product', 'product:view', '📦', 2, 1, 1),
+  (6, 0, '仓库管理', '/storeManagement', 'inventory:stores:view', '🏠', 3, 1, 1),
+  (7, 0, '仓位管理', '/positionManagement', 'inventory:positions:view', '🗺️', 4, 1, 1),
+  (8, 0, '计量单位管理', '/unitManagement', 'admin:menu:view', '🧪', 5, 1, 1),
+  (9, 0, '货币管理', '/currencyManagement', 'admin:menu:view', '🪙', 6, 1, 1),
+  (10, 0, '运输途径管理', '/transportManagement', 'admin:menu:view', '✈️', 7, 1, 1)
+ON DUPLICATE KEY UPDATE
+  parent_id = VALUES(parent_id),
+  name = VALUES(name),
+  path = VALUES(path),
+  required_permission_code = VALUES(required_permission_code),
+  icon = VALUES(icon),
+  sort_no = VALUES(sort_no),
+  visible = VALUES(visible),
+  status = VALUES(status);
 
 -- 角色菜单关系（默认给三个角色完整菜单，后续可在权限管理页面动态调整）
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)

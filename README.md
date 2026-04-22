@@ -54,6 +54,7 @@ stockManagementPlatform/
 ## 编译和运行
 
 ### 启动步骤
+
 ```
 # 1. 先在 MySQL 中执行建表和初始化数据
 
@@ -68,7 +69,14 @@ cd server
 mvn spring-boot:run
 ```
 
+后端端口占用时：
 
+```
+lsof -nP -iTCP:8080 -sTCP:LISTEN
+kill -9 <上一步查到的PID>
+mvn clean -DskipTests compile
+mvn spring-boot:run
+```
 
 ### 前端运行
 
@@ -80,7 +88,7 @@ mvn spring-boot:run
 cd frontend
 ```
 
-2. 安装依赖
+1. 安装依赖
 
 ```bash
 npm install
@@ -88,7 +96,7 @@ npm install
 yarn install
 ```
 
-3. 启动开发服务器
+1. 启动开发服务器
 
 ```bash
 npm run dev
@@ -106,13 +114,13 @@ yarn dev
 cd frontend
 ```
 
-2. 安装依赖（如果还没有安装）
+1. 安装依赖（如果还没有安装）
 
 ```bash
 npm install
 ```
 
-3. 构建生产版本
+1. 构建生产版本
 
 ```bash
 npm run build
@@ -150,7 +158,6 @@ yarn build
     "username": "用户名"
   }
   ```
-
 - `POST /api/logout` - 用户登出（需要Token）
 - `GET /api/verify` - 验证Token有效性（需要Token）
 
@@ -212,6 +219,7 @@ yarn build
 ### 示例数据
 
 系统启动时会自动加载一些示例数据：
+
 - P001: 笔记本电脑（电子产品）
 - P002: 无线鼠标（电子产品）
 - P003: 办公椅（家具）
@@ -220,6 +228,7 @@ yarn build
 ## 技术栈
 
 ### 后端
+
 - Spring Boot
 - MyBatis
 - MySQL
@@ -227,6 +236,7 @@ yarn build
 - JWT 认证机制
 
 ### 前端
+
 - React 17
 - React Router 5（路由管理）
 - Ant Design 4.x（UI组件库）
@@ -239,7 +249,9 @@ yarn build
 ## 类说明
 
 ### Product 类
+
 商品实体类，包含以下属性：
+
 - `id`: 商品ID（唯一标识）
 - `name`: 商品名称
 - `price`: 商品价格
@@ -247,37 +259,49 @@ yarn build
 - `category`: 商品类别
 
 ### User 类
+
 用户实体类，包含以下属性：
+
 - `username`: 用户名
 - `password`: 密码（实际应用中应加密存储）
 
 ### ProductService 类
+
 商品业务服务类，提供以下功能：
+
 - 商品增删改查
 - 商品入库与出库
 - 库存统计与低库存查询
 
 ### AuthService 类
+
 认证业务服务类，提供以下功能：
+
 - 用户登录验证
 - JWT Token 生成和校验
 - 用户角色信息加载
 
 ### InventoryService 类
+
 库存业务服务类，提供以下功能：
+
 - 仓库和仓位查询
 - 分仓库存汇总
 - 库存调整与流水记录
 
 ### Controller 层
+
 后端控制层包括：
+
 - `AuthController`：登录/登出/Token验证
 - `ProductController`：商品管理与统计接口
 - `InventoryController`：仓库、仓位与库存接口
 - `MenuController`：动态菜单与角色菜单授权接口
 
 ### StockApplication 类
+
 Spring Boot 启动类，负责：
+
 - 应用初始化与自动装配
 - Mapper 扫描
 - Web 服务启动
@@ -372,3 +396,4 @@ server:
 - 密码加密存储
 - 多级权限控制
 - API接口权限控制
+

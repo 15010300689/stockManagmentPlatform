@@ -11,6 +11,12 @@ const TOKEN_KEY = 'inventory_token';
 const USERNAME_KEY = 'inventory_username';
 const ROLES_KEY = 'inventory_roles';
 const PERMISSIONS_KEY = 'inventory_permissions';
+const MENU_PATHS_KEY = 'inventory_menu_paths';
+
+interface MenuNode {
+    key?: string;
+    children?: MenuNode[];
+}
 
 /**
  * 保存 token、用户名、角色列表、权限码
@@ -53,6 +59,31 @@ export function setPermissionCodes(codes: string[]): void {
     localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(codes || []));
 }
 
+export function setMenuPaths(paths: string[]): void {
+    localStorage.setItem(MENU_PATHS_KEY, JSON.stringify(paths || []));
+}
+
+export function getMenuPaths(): string[] {
+    const data = localStorage.getItem(MENU_PATHS_KEY);
+    return data ? JSON.parse(data) : [];
+}
+
+export function extractMenuPaths(tree: MenuNode[]): string[] {
+    const result: string[] = [];
+    const walk = (nodes: MenuNode[]) => {
+        nodes.forEach((node) => {
+            if (node.key && node.key.startsWith('/')) {
+                result.push(node.key);
+            }
+            if (Array.isArray(node.children) && node.children.length > 0) {
+                walk(node.children);
+            }
+        });
+    };
+    walk(tree || []);
+    return [...new Set(result)];
+}
+
 export function hasPermission(code?: string): boolean {
     if (!code) return true;
     return getPermissionCodes().includes(code);
@@ -63,6 +94,7 @@ export function clearAuth(): void {
     localStorage.removeItem(USERNAME_KEY);
     localStorage.removeItem(ROLES_KEY);
     localStorage.removeItem(PERMISSIONS_KEY);
+    localStorage.removeItem(MENU_PATHS_KEY);
 }
 
 export function isAuthenticated(): boolean {

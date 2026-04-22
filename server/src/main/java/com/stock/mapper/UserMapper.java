@@ -9,6 +9,8 @@ public interface UserMapper {
 
     User findByUsername(@Param("username") String username);
 
+    User findById(@Param("id") Long id);
+
     List<User> findUsersByNamePage(@Param("username") String username,
                                    @Param("offset") int offset,
                                    @Param("limit") int limit);
@@ -18,4 +20,10 @@ public interface UserMapper {
     List<Role> findRolesByUserId(@Param("userId") Long userId);
 
     int insert(User user);
+
+    int updateUserBasic(@Param("id") Long id, @Param("username") String username);
+
+    int deleteUserRoles(@Param("userId") Long userId);
+
+    int insertUserRole(@Param("userId") Long userId, @Param("roleId") Long roleId);
 }
