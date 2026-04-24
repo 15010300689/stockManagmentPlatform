@@ -37,7 +37,7 @@ function UserManagement(): JSX.Element {
             title: '用户ID',
             dataIndex: 'id',
             key: 'id',
-            width: 120,
+            width: 200,
             align: 'center',
             fixed: 'left',
         },
@@ -54,7 +54,7 @@ function UserManagement(): JSX.Element {
             dataIndex: 'createTime',
             key: 'createTime',
             align: 'center',
-            width: 200,
+            width: 300,
             render: (createTime: string) => (dayjs(createTime).format('YYYY-MM-DD HH:mm:ss')),
         },
         {
