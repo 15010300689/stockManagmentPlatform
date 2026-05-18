@@ -7,7 +7,8 @@ build/
 frontend/dist/
 frontend/build/
 backend/web/
-server/target/*
+server/target/
+
 
 # Vite
 .vite/
