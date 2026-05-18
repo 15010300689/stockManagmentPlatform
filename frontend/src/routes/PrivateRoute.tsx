@@ -10,8 +10,10 @@ function PrivateRoute({ children }: PrivateRouteProps): JSX.Element {
     const location = useLocation();
     const menuPaths = getMenuPaths();
     const currentPath = location.pathname;
-    const isPublicAuthedPage = currentPath === '/no-access' || currentPath === '/welcome';
-
+    // 首页 / 与 /welcome 不依赖菜单权限
+    const isPublicAuthedPage = currentPath === '/'
+        || currentPath === '/no-access'
+        || currentPath === '/welcome';
     if (!isAuthenticated()) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }

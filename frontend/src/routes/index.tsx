@@ -15,11 +15,6 @@ import CurrencyManagement from '../pages/CurrencyManagement';
 import TransportManagement from '../pages/TransportManagement';
 import NoAccess from '../pages/NoAccess';
 import Welcome from '../pages/Welcome';
-import { getMenuPaths } from '../auth';
-
-function HomeRedirect(): JSX.Element {
-    return <Navigate to="/welcome" replace />;
-}
 
 function AppRoutes(): JSX.Element {
     return (
@@ -27,7 +22,7 @@ function AppRoutes(): JSX.Element {
             <Route path="/login" element={<Login />} />
             <Route element={<PrivateRoute />}>
                 <Route element={<MainLayout />}>
-                    <Route index element={<HomeRedirect />} />
+                    <Route index element={<Navigate to="/welcome" replace />} />
                     <Route path="/welcome" element={<Welcome />} />
                     <Route path="/product" element={<ProductManagement />} />
                     <Route path="/account" element={<AccountManagement />} />
@@ -43,7 +38,7 @@ function AppRoutes(): JSX.Element {
                     <Route path="/no-access" element={<NoAccess />} />
                 </Route>
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/welcome" replace />} />
         </Routes>
     );
 }
