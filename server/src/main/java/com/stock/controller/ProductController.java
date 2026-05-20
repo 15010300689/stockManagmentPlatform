@@ -93,10 +93,17 @@ public class ProductController {
         if (req.getId() == null) {
             return Result.error("缺少商品 id");
         }
-        if (productService.stockIn(req.getId(), req.getAmount())) {
+        if (req.getWarehouseId() == null) {
+            return Result.error("请选择仓库");
+        }
+        if (req.getAmount() == null || req.getAmount() <= 0) {
+            return Result.error("入库数量必须大于 0");
+        }
+        if (productService.stockIn(req.getId(), req.getWarehouseId(), req.getPositionId(),
+                req.getAmount(), req.getRemark())) {
             return Result.ok("入库成功");
         }
-        return Result.error("入库失败");
+        return Result.error("入库失败，请检查仓库/仓位是否正确");
     }
 
     /**
@@ -107,10 +114,17 @@ public class ProductController {
         if (req.getId() == null) {
             return Result.error("缺少商品 id");
         }
-        if (productService.stockOut(req.getId(), req.getAmount())) {
+        if (req.getWarehouseId() == null) {
+            return Result.error("请选择仓库");
+        }
+        if (req.getAmount() == null || req.getAmount() <= 0) {
+            return Result.error("出库数量必须大于 0");
+        }
+        if (productService.stockOut(req.getId(), req.getWarehouseId(), req.getPositionId(),
+                req.getAmount(), req.getRemark())) {
             return Result.ok("出库成功");
         }
-        return Result.error("出库失败，库存不足");
+        return Result.error("出库失败，该仓库/仓位库存不足或参数无效");
     }
 
     /**

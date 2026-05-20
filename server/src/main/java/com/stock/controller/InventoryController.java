@@ -142,6 +142,89 @@ public class InventoryController {
     /**
      * POST /api/inventory/adjust -- 库存调整
      */
+    /**
+     * GET /api/stores/{warehouseId}/inventory — 按仓库查库存（推荐）
+     */
+    @GetMapping("/stores/{warehouseId}/inventory")
+    public Object getStoreInventory(@PathVariable("warehouseId") Integer warehouseId,
+                                    @RequestParam(required = false, defaultValue = "false") boolean overview) {
+        if (overview) {
+            return inventoryService.getWarehouseInventoryOverview(warehouseId);
+        }
+        return inventoryService.getInventoryByWarehouse(warehouseId);
+    }
+
+    /**
+     * GET /api/stores/{warehouseId}/inventory/overview — 仓库库存概览（仓位占用+商品）
+     */
+    @GetMapping("/stores/{warehouseId}/inventory/overview")
+    public Object getStoreInventoryOverview(@PathVariable("warehouseId") Integer warehouseId) {
+        return inventoryService.getWarehouseInventoryOverview(warehouseId);
+    }
+
+    /**
+     * GET /api/stores/{warehouseId}/position-occupancy — 仓位占用摘要
+     */
+    @GetMapping("/stores/{warehouseId}/position-occupancy")
+    public Object getPositionOccupancy(@PathVariable("warehouseId") Integer warehouseId) {
+        return inventoryService.getPositionOccupancyMap(warehouseId);
+    }
+
+    /**
+     * GET /api/positions/{positionId}/inventory — 按仓位查库存（推荐）
+     */
+    @GetMapping("/positions/{positionId}/inventory")
+    public Object getPositionInventory(@PathVariable("positionId") Integer positionId,
+                                       @RequestParam(required = false, defaultValue = "false") boolean overview) {
+        if (overview) {
+            return inventoryService.getPositionInventoryOverview(positionId);
+        }
+        return inventoryService.getInventoryByPosition(positionId);
+    }
+
+    /**
+     * GET /api/positions/{positionId}/inventory/overview — 仓位库存概览
+     */
+    @GetMapping("/positions/{positionId}/inventory/overview")
+    public Object getPositionInventoryOverview(@PathVariable("positionId") Integer positionId) {
+        return inventoryService.getPositionInventoryOverview(positionId);
+    }
+
+    /**
+     * GET /api/inventory/by-warehouse?warehouseId=1 — 兼容旧路径
+     */
+    @GetMapping("/inventory/by-warehouse")
+    public Object getInventoryByWarehouse(@RequestParam Integer warehouseId) {
+        if (warehouseId == null) {
+            return Result.error("缺少 warehouseId");
+        }
+        return inventoryService.getInventoryByWarehouse(warehouseId);
+    }
+
+    /**
+     * GET /api/inventory/by-position?positionId=3 — 兼容旧路径
+     */
+    @GetMapping("/inventory/by-position")
+    public Object getInventoryByPosition(@RequestParam Integer positionId) {
+        if (positionId == null) {
+            return Result.error("缺少 positionId");
+        }
+        return inventoryService.getInventoryByPosition(positionId);
+    }
+
+    /**
+     * GET /api/inventory/logs?productId=1&warehouseId=1&positionId=3
+     */
+    @GetMapping("/inventory/logs")
+    public Object getInventoryLogs(@RequestParam(required = false) Long productId,
+                                   @RequestParam(required = false) Integer warehouseId,
+                                   @RequestParam(required = false) Integer positionId) {
+        return inventoryService.getInventoryLogs(productId, warehouseId, positionId);
+    }
+
+    /**
+     * POST /api/inventory/adjust -- 库存调整
+     */
     @PostMapping("/inventory/adjust")
     public Result adjustInventory(@RequestBody AdjustRequest req) {
         if (req.getProductId() == null || req.getWarehouseId() == null

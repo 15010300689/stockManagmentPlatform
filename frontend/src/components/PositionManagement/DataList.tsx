@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Card, Space, Button, Tag, Row, Col, Typography, Empty, Statistic, Pagination } from 'antd';
+import { Card, Space, Button, Tag, Row, Col, Typography, Empty, Statistic, Pagination, Progress } from 'antd';
+import type { PositionOccupancy } from '../../types/inventoryOverview';
 import {
     HomeOutlined,
     AppstoreOutlined,
@@ -29,6 +30,8 @@ interface DataListProps {
     treeData?: TreeNode[];
     onEdit?: (node: TreeNode) => void;
     onDelete?: (node: TreeNode) => void;
+    onViewInventory?: (node: TreeNode) => void;
+    occupancyMap?: Record<string, PositionOccupancy>;
     loading?: boolean;
     pagination?: {
         current: number;
@@ -39,7 +42,7 @@ interface DataListProps {
 }
 
 function DataList(props: DataListProps): JSX.Element {
-    const { treeData = [], onEdit, onDelete, loading = false, pagination } = props;
+    const { treeData = [], onEdit, onDelete, onViewInventory, occupancyMap = {}, loading = false, pagination } = props;
     const [expandedKeys, setExpandedKeys] = useState<Record<number, boolean>>({});
 
     // 初始化展开状态：默认展开第一层
@@ -134,12 +137,50 @@ function DataList(props: DataListProps): JSX.Element {
                                         <Tag color="processing" style={{ margin: 0 }}>
                                             {node.typeLabel}
                                         </Tag>
-                                        {node.maxCapacity && (
+                                        {node.maxCapacity ? (
                                             <Tag color="default" style={{ margin: 0 }}>
-                                                容量: {node.maxCapacity} {node.unit || ''}
+                                                容量上限: {node.maxCapacity} {node.unit || '件'}
                                             </Tag>
-                                        )}
+                                        ) : null}
+                                        {(() => {
+                                            const occ = occupancyMap[String(node.id)];
+                                            if (!occ || occ.usedQuantity <= 0) {
+                                                return occ ? (
+                                                    <Tag style={{ margin: 0 }}>空闲</Tag>
+                                                ) : null;
+                                            }
+                                            const unit = occ.unit || node.unit || '件';
+                                            if (occ.maxCapacity > 0) {
+                                                const pct = occ.utilizationPercent ?? 0;
+                                                return (
+                                                    <Tag
+                                                        color={pct >= 90 ? 'error' : pct >= 70 ? 'warning' : 'processing'}
+                                                        style={{ margin: 0 }}
+                                                    >
+                                                        已占 {occ.usedQuantity}/{occ.maxCapacity} {unit}
+                                                        （剩 {occ.remainingQuantity ?? 0}）
+                                                    </Tag>
+                                                );
+                                            }
+                                            return (
+                                                <Tag color="processing" style={{ margin: 0 }}>
+                                                    存放 {occ.usedQuantity} {unit} · {occ.skuCount} 种商品
+                                                </Tag>
+                                            );
+                                        })()}
                                     </Space>
+                                    {occupancyMap[String(node.id)]?.maxCapacity ? (
+                                        <Progress
+                                            percent={occupancyMap[String(node.id)].utilizationPercent ?? 0}
+                                            size="small"
+                                            style={{ marginTop: 8, maxWidth: 320 }}
+                                            status={
+                                                (occupancyMap[String(node.id)].utilizationPercent ?? 0) >= 100
+                                                    ? 'exception'
+                                                    : 'active'
+                                            }
+                                        />
+                                    ) : null}
                                 </div>
                             </Space>
                         </Col>
@@ -158,6 +199,15 @@ function DataList(props: DataListProps): JSX.Element {
                                         }}
                                     >
                                         {isExpanded ? '收起' : '展开'}
+                                    </Button>
+                                )}
+                                {onViewInventory && (
+                                    <Button
+                                        type="link"
+                                        size="small"
+                                        onClick={() => onViewInventory(node)}
+                                    >
+                                        库存
                                     </Button>
                                 )}
                                 <Button

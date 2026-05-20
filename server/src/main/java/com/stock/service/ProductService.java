@@ -18,6 +18,9 @@ public class ProductService {
     @Autowired
     private InventoryMapper inventoryMapper;
 
+    @Autowired
+    private InventoryService inventoryService;
+
     public List<Product> getAllProducts() {
         return productMapper.findAll();
     }
@@ -122,18 +125,24 @@ public class ProductService {
         return productMapper.deleteById(id) > 0;
     }
 
-    public boolean stockIn(Long id, int amount) {
-        if (id == null || amount <= 0) {
+    /**
+     * 商品入库：写入分仓库存并同步商品总库存
+     */
+    public boolean stockIn(Long id, Integer warehouseId, Integer positionId, int amount, String remark) {
+        if (id == null || warehouseId == null || amount <= 0) {
             return false;
         }
-        return productMapper.addQuantity(id, amount) > 0;
+        return inventoryService.adjustInventory(id, warehouseId, positionId, amount, "in", remark);
     }
 
-    public boolean stockOut(Long id, int amount) {
-        if (id == null || amount <= 0) {
+    /**
+     * 商品出库：从指定仓库/仓位扣减
+     */
+    public boolean stockOut(Long id, Integer warehouseId, Integer positionId, int amount, String remark) {
+        if (id == null || warehouseId == null || amount <= 0) {
             return false;
         }
-        return productMapper.reduceQuantity(id, amount) > 0;
+        return inventoryService.adjustInventory(id, warehouseId, positionId, amount, "out", remark);
     }
 
     /**

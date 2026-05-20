@@ -26,6 +26,7 @@ import {
     ContainerOutlined
 } from '@ant-design/icons';
 import { requestWithAuth } from '../../api/client';
+import { buildPositionTree } from '../../utils/positionTree';
 
 const { Text } = Typography;
 
@@ -35,7 +36,18 @@ interface InventoryDrawerProps {
     product?: ProductItem | null;
     warehouseList?: StoreItem[];
     positionList?: PositionItem[];
-    onAdjust?: (values: unknown) => void;
+    onAdjust?: () => void;
+    onProductUpdated?: () => void;
+}
+
+interface LogRow {
+    id: number;
+    createTime?: string;
+    typeLabel?: string;
+    amount?: number;
+    warehouseName?: string;
+    positionName?: string;
+    remark?: string;
 }
 
 interface SummaryRow {
@@ -72,34 +84,15 @@ function InventoryDrawer({
     product = null,
     warehouseList = [],
     positionList = [],
-    onAdjust = () => {}
+    onAdjust = () => {},
+    onProductUpdated = () => {},
 }: InventoryDrawerProps): JSX.Element {
     const [form] = Form.useForm();
     const [summaryRows, setSummaryRows] = useState<SummaryRow[]>([]);
     const [positionRows, setPositionRows] = useState<PositionRow[]>([]);
+    const [logRows, setLogRows] = useState<LogRow[]>([]);
     const [inventoryLoading, setInventoryLoading] = useState(false);
-
-    // 构建树形仓位数据
-    const buildTree = (data, warehouseId, parentId = null) => {
-        return data
-            .filter(
-                (item) =>
-                    item.warehouseId === warehouseId &&
-                    ((item.parentId === null && parentId === null) ||
-                        (item.parentId !== null &&
-                            parentId !== null &&
-                            String(item.parentId) === String(parentId)))
-            )
-            .map((item) => {
-                const children = buildTree(data, warehouseId, item.id);
-                return {
-                    id: item.id,
-                    title: `${item.code}${item.name ? ' - ' + item.name : ''}`,
-                    value: item.id,
-                    children: children.length > 0 ? children : undefined,
-                };
-            });
-    };
+    const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | undefined>();
 
     const warehouseOptions = warehouseList.map((item) => ({
         label: item.name,
@@ -126,13 +119,13 @@ function InventoryDrawer({
         });
     }, [warehouseList, product]);
 
-    // 仓位明细树
+    // 仓位明细树（展示用）
     const positionTree = useMemo(() => {
         return warehouseList.map((w) => ({
             key: w.id,
             warehouseId: w.id,
             title: w.name,
-            children: buildTree(positionList, w.id),
+            children: buildPositionTree(positionList, w.id),
         }));
     }, [warehouseList, positionList]);
 
@@ -176,73 +169,52 @@ function InventoryDrawer({
         { title: '备注', dataIndex: 'remark', key: 'remark' },
     ];
 
-    const mockLogs = useMemo(() => {
-        if (!product) return [];
-        return [
-            {
-                key: 1,
-                time: '2026-02-05 10:20',
-                type: '入库',
-                amount: '+20',
-                warehouseName: '主仓库',
-                positionName: 'A-01-1-01',
-                remark: '补货',
-            },
-            {
-                key: 2,
-                time: '2026-02-04 16:05',
-                type: '出库',
-                amount: '-5',
-                warehouseName: '主仓库',
-                positionName: 'A-01-1-02',
-                remark: '发货',
-            },
-        ];
-    }, [product]);
+    const loadInventoryData = async () => {
+        if (!visible || !product?.id) return;
+        setInventoryLoading(true);
+        try {
+            const pid = encodeURIComponent(String(product.id));
+            const [summaryRes, positionsRes, logsRes] = await Promise.all([
+                requestWithAuth(`${API_BASE}/inventory/summary?productId=${pid}`),
+                requestWithAuth(`${API_BASE}/inventory/positions?productId=${pid}`),
+                requestWithAuth(`${API_BASE}/inventory/logs?productId=${pid}`),
+            ]);
+
+            if (summaryRes.ok) {
+                const summaryPayload = await summaryRes.json();
+                setSummaryRows(
+                    Array.isArray(summaryPayload) ? (summaryPayload as SummaryRow[]) : fallbackSummaryData
+                );
+            } else {
+                setSummaryRows(fallbackSummaryData);
+            }
+
+            if (positionsRes.ok) {
+                const positionsPayload = await positionsRes.json();
+                setPositionRows(Array.isArray(positionsPayload) ? (positionsPayload as PositionRow[]) : []);
+            } else {
+                setPositionRows([]);
+            }
+
+            if (logsRes.ok) {
+                const logsPayload = await logsRes.json();
+                setLogRows(Array.isArray(logsPayload) ? (logsPayload as LogRow[]) : []);
+            } else {
+                setLogRows([]);
+            }
+        } catch (error) {
+            console.warn('加载库存数据失败', error);
+            setSummaryRows(fallbackSummaryData);
+            setPositionRows([]);
+            setLogRows([]);
+        } finally {
+            setInventoryLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const loadInventoryData = async () => {
-            if (!visible || !product?.id) return;
-            setInventoryLoading(true);
-            try {
-                const [summaryRes, positionsRes] = await Promise.all([
-                    requestWithAuth(`${API_BASE}/inventory/summary?productId=${encodeURIComponent(String(product.id))}`),
-                    requestWithAuth(`${API_BASE}/inventory/positions?productId=${encodeURIComponent(String(product.id))}`)
-                ]);
-
-                if (summaryRes.ok) {
-                    const summaryPayload = await summaryRes.json();
-                    if (Array.isArray(summaryPayload)) {
-                        setSummaryRows(summaryPayload as SummaryRow[]);
-                    } else {
-                        setSummaryRows(fallbackSummaryData);
-                    }
-                } else {
-                    setSummaryRows(fallbackSummaryData);
-                }
-
-                if (positionsRes.ok) {
-                    const positionsPayload = await positionsRes.json();
-                    if (Array.isArray(positionsPayload)) {
-                        setPositionRows(positionsPayload as PositionRow[]);
-                    } else {
-                        setPositionRows([]);
-                    }
-                } else {
-                    setPositionRows([]);
-                }
-            } catch (error) {
-                console.warn('加载库存弹窗数据失败，已回退 mock', error);
-                setSummaryRows(fallbackSummaryData);
-                setPositionRows([]);
-                message.warning('后端库存接口异常，已回退为 mock 展示');
-            } finally {
-                setInventoryLoading(false);
-            }
-        };
-
         void loadInventoryData();
-    }, [visible, product?.id, fallbackSummaryData]);
+    }, [visible, product?.id]);
 
     const handleAdjust = async (values: AdjustFormValues) => {
         if (!product?.id) return;
@@ -263,13 +235,13 @@ function InventoryDrawer({
                 message.error(result?.message || '库存调整失败');
                 return;
             }
-            onAdjust(values);
             message.success(result?.message || '库存调整成功');
             form.resetFields();
+            await loadInventoryData();
+            onAdjust();
+            onProductUpdated();
         } catch (error) {
-            onAdjust(values);
-            message.warning('后端库存调整接口不可用，已回退为 mock 调整');
-            form.resetFields();
+            message.error('库存调整失败: ' + (error as Error).message);
         }
     };
 
@@ -341,17 +313,20 @@ function InventoryDrawer({
                                         <Select
                                             placeholder="请选择仓库"
                                             options={warehouseOptions}
-                                            onChange={() => form.setFieldValue('positionId', undefined)}
+                                            onChange={(v) => {
+                                                setSelectedWarehouseId(v);
+                                                form.setFieldValue('positionId', undefined);
+                                            }}
                                         />
                                     </Form.Item>
                                     <Form.Item label="仓位" name="positionId">
                                         <TreeSelect
                                             placeholder="可选，精确到仓位"
-                                            treeData={buildTree(
+                                            treeData={buildPositionTree(
                                                 positionList,
-                                                form.getFieldValue('warehouseId')
+                                                selectedWarehouseId ?? form.getFieldValue('warehouseId')
                                             )}
-                                            disabled={!form.getFieldValue('warehouseId')}
+                                            disabled={!(selectedWarehouseId ?? form.getFieldValue('warehouseId'))}
                                             allowClear
                                             treeDefaultExpandAll
                                             fieldNames={{
@@ -397,13 +372,24 @@ function InventoryDrawer({
                         {
                             key: 'logs',
                             label: '库存流水',
-                            children: mockLogs.length ? (
+                            children: logRows.length ? (
                                 <Table
                                     size="small"
-                                    rowKey="key"
-                                    dataSource={mockLogs}
+                                    rowKey="id"
+                                    loading={inventoryLoading}
+                                    dataSource={logRows.map((row) => ({
+                                        ...row,
+                                        time: row.createTime
+                                            ? new Date(row.createTime).toLocaleString('zh-CN')
+                                            : '-',
+                                        type: row.typeLabel,
+                                        amount:
+                                            row.amount != null
+                                                ? `${row.typeLabel?.includes('出') ? '-' : '+'}${row.amount}`
+                                                : '-',
+                                    }))}
                                     columns={logsColumns}
-                                    pagination={false}
+                                    pagination={{ pageSize: 10 }}
                                 />
                             ) : (
                                 <Empty description="暂无流水" />

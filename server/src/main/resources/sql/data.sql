@@ -73,6 +73,14 @@ INSERT IGNORE INTO sys_permission (id, permission_name, permission_code, path, m
   (12, '分仓库存汇总',   'inventory:summary:view',  '/api/inventory/summary',         'GET',    '分仓库存汇总'),
   (13, '分仓位库存明细', 'inventory:positions:view','/api/inventory/positions',       'GET',    '分仓位库存明细'),
   (14, '库存调整',       'inventory:adjust',        '/api/inventory/adjust',          'POST',   '库存调整'),
+  (24, '仓库库存查询',   'inventory:warehouse:view','/api/stores/*/inventory',        'GET',    '按仓库查库存'),
+  (25, '仓位库存查询',   'inventory:position:view', '/api/positions/*/inventory',     'GET',    '按仓位查库存'),
+  (27, '仓库库存查询(旧)','inventory:warehouse:view','/api/inventory/by-warehouse',  'GET',    '按仓库查库存(兼容)'),
+  (28, '仓位库存查询(旧)','inventory:position:view', '/api/inventory/by-position',   'GET',    '按仓位查库存(兼容)'),
+  (26, '库存流水查询',   'inventory:logs:view',     '/api/inventory/logs',            'GET',    '库存流水'),
+  (29, '仓库库存概览',   'inventory:warehouse:view','/api/stores/*/inventory/overview','GET', '仓库库存概览'),
+  (30, '仓位库存概览',   'inventory:position:view', '/api/positions/*/inventory/overview','GET','仓位库存概览'),
+  (31, '仓位占用摘要',   'inventory:warehouse:view','/api/stores/*/position-occupancy','GET', '仓位占用摘要'),
   (15, '菜单查看',       'admin:menu:view',         '/api/admin/menus',               'GET',    '查看全部菜单'),
   (16, '菜单新增',       'admin:menu:add',          '/api/admin/menu',                'POST',   '新增菜单'),
   (17, '菜单编辑',       'admin:menu:edit',         '/api/admin/menu/*',              'PUT',    '编辑菜单'),
@@ -91,11 +99,11 @@ SELECT 1 AS role_id, id AS permission_id FROM sys_permission;
 -- 2) 仓库管理员：商品查看、库存操作、仓库仓位查看 + 统计/预警
 INSERT IGNORE INTO sys_role_permission (role_id, permission_id) VALUES
   (2, 1), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9),
-  (2,10), (2,11), (2,12), (2,13), (2,14);
+  (2,10), (2,11), (2,12), (2,13), (2,14), (2,24), (2,25), (2,26), (2,27), (2,28), (2,29), (2,30), (2,31);
 
 -- 3) 普通用户：只读权限
 INSERT IGNORE INTO sys_role_permission (role_id, permission_id) VALUES
-  (3, 1), (3, 5), (3, 8), (3, 9), (3,10), (3,11), (3,12), (3,13);
+  (3, 1), (3, 5), (3, 8), (3, 9), (3,10), (3,11), (3,12), (3,13), (3,24), (3,25), (3,26), (3,27), (3,28), (3,29), (3,30), (3,31);
 
 -- 示例商品（id 由数据库自增；按名称去重可重复执行）
 INSERT IGNORE INTO product (name, price, quantity, category) VALUES
@@ -117,3 +125,19 @@ INSERT IGNORE INTO position (id, warehouse_id, parent_id, code, name, type, stat
   (4, 1, 2,    'A-01-2', 'A区货架1第2层', 'level', '1', 100, '件'),
   (5, 2, NULL, 'B',    'B区',      'area',     '1', 0,    NULL),
   (6, 2, 5,    'B-01', 'B区货架1', 'shelf',    '1', 0,    NULL);
+
+-- 已有数据库升级（若曾插入 id=24/25 的旧 path，可执行）：
+-- UPDATE sys_permission SET path='/api/stores/*/inventory' WHERE id=24;
+-- UPDATE sys_permission SET path='/api/positions/*/inventory' WHERE id=25;
+-- INSERT IGNORE INTO sys_permission (id, permission_name, permission_code, path, method, description) VALUES
+--   (27, '仓库库存查询(旧)', 'inventory:warehouse:view', '/api/inventory/by-warehouse', 'GET', '兼容'),
+--   (28, '仓位库存查询(旧)', 'inventory:position:view', '/api/inventory/by-position', 'GET', '兼容');
+-- INSERT IGNORE INTO sys_role_permission (role_id, permission_id) VALUES (2,27),(2,28),(3,27),(3,28);
+
+-- 示例分仓库存（与 product 表自增 id 1~4 对应；执行前需已有示例商品）
+INSERT IGNORE INTO inventory (product_id, warehouse_id, position_id, quantity) VALUES
+  (1, 1, 3, 30),
+  (1, 1, 4, 20),
+  (2, 1, NULL, 150),
+  (2, 2, NULL, 50),
+  (3, 1, 3, 30);

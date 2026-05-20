@@ -4,10 +4,17 @@ import { useSearchParams } from 'react-router-dom';
 import QueryForm from '../components/PositionManagement/QueryForm';
 import DataList from '../components/PositionManagement/DataList';
 import AddPositionModal from '../components/PositionManagement/AddPositionModal';
+import LocationInventoryDrawer from '../components/inventory/LocationInventoryDrawer';
 import { requestWithAuth } from '../api/client';
 import { positionList } from '../mock/positionList';
 import { storeList } from '../mock/storeList';
 import type { PositionItem, StoreItem } from '../types/inventory';
+import type { PositionOccupancy } from '../types/inventoryOverview';
+import {
+    buildOccupancyMapFromFlat,
+    type FlatInventoryRow,
+    type PositionMeta,
+} from '../utils/inventoryOverviewClient';
 
 interface QueryParams {
     warehouseId: string;
@@ -157,6 +164,8 @@ function PositionManagement(): JSX.Element {
 
     const [mode, setMode] = useState<'add' | 'edit'>('add');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [positionInventoryOpen, setPositionInventoryOpen] = useState(false);
+    const [inventoryPosition, setInventoryPosition] = useState<DataListNode | null>(null);
     const [currentPositionInfo, setCurrentPositionInfo] = useState<Partial<TreeNode>>({});
     const [dataSource, setDataSource] = useState<PositionItem[]>(fallbackPositions);
     const [warehouseList, setWarehouseList] = useState<StoreItem[]>(fallbackStores);
@@ -164,6 +173,52 @@ function PositionManagement(): JSX.Element {
     const [pageNo, setPageNo] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(fallbackPositions.length);
+    const [occupancyMap, setOccupancyMap] = useState<Record<string, PositionOccupancy>>({});
+
+    const loadPositionOccupancy = useCallback(async (whId: string) => {
+        if (!whId) {
+            setOccupancyMap({});
+            return;
+        }
+        try {
+            const occRes = await requestWithAuth(
+                `${API_BASE}/stores/${encodeURIComponent(whId)}/position-occupancy`
+            );
+            if (occRes.ok) {
+                const payload = await occRes.json();
+                if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+                    setOccupancyMap(payload as Record<string, PositionOccupancy>);
+                    return;
+                }
+            }
+
+            const [invRes, posRes] = await Promise.all([
+                requestWithAuth(`${API_BASE}/stores/${encodeURIComponent(whId)}/inventory`),
+                requestWithAuth(`${API_BASE}/positions?warehouseId=${encodeURIComponent(whId)}`),
+            ]);
+            if (!invRes.ok) {
+                setOccupancyMap({});
+                return;
+            }
+            const invRows = (await invRes.json()) as FlatInventoryRow[];
+            if (!Array.isArray(invRows)) {
+                setOccupancyMap({});
+                return;
+            }
+            let positions: PositionMeta[] = [];
+            if (posRes.ok) {
+                const posPayload = await posRes.json();
+                if (Array.isArray(posPayload)) {
+                    positions = posPayload as PositionMeta[];
+                } else if (Array.isArray(posPayload?.data)) {
+                    positions = posPayload.data as PositionMeta[];
+                }
+            }
+            setOccupancyMap(buildOccupancyMapFromFlat(invRows, positions));
+        } catch {
+            setOccupancyMap({});
+        }
+    }, []);
 
     const requestStoreData = useCallback(async () => {
         const response = await requestWithAuth(`${API_BASE}/stores`);
@@ -410,6 +465,10 @@ function PositionManagement(): JSX.Element {
         void requestInitialData();
     }, [requestInitialData]);
 
+    useEffect(() => {
+        void loadPositionOccupancy(queryParams.warehouseId);
+    }, [queryParams.warehouseId, loadPositionOccupancy, dataSource]);
+
     return (
         <Card title={warehouseNameFromUrl ? `仓位管理 - ${decodeURIComponent(warehouseNameFromUrl)}` : '仓位管理'}>
             <QueryForm
@@ -419,8 +478,13 @@ function PositionManagement(): JSX.Element {
             />
             <DataList
                 treeData={treeData}
+                occupancyMap={occupancyMap}
                 onEdit={onEditPosition}
                 onDelete={onDeletePosition}
+                onViewInventory={(node) => {
+                    setInventoryPosition(node);
+                    setPositionInventoryOpen(true);
+                }}
                 loading={loading}
                 pagination={{
                     current: pageNo,
@@ -441,6 +505,32 @@ function PositionManagement(): JSX.Element {
                     setIsAddModalOpen(false);
                 }}
                 onSubmit={handleSubmit}
+            />
+            <LocationInventoryDrawer
+                open={positionInventoryOpen}
+                onClose={() => {
+                    setPositionInventoryOpen(false);
+                    setInventoryPosition(null);
+                }}
+                mode="position"
+                positionId={inventoryPosition?.id}
+                positionLabel={
+                    inventoryPosition
+                        ? `${inventoryPosition.code}${inventoryPosition.name ? ` - ${inventoryPosition.name}` : ''}`
+                        : undefined
+                }
+                positionMeta={
+                    inventoryPosition
+                        ? {
+                              id: inventoryPosition.id,
+                              code: inventoryPosition.code,
+                              name: inventoryPosition.name,
+                              type: inventoryPosition.type,
+                              maxCapacity: inventoryPosition.maxCapacity,
+                              unit: inventoryPosition.unit,
+                          }
+                        : undefined
+                }
             />
         </Card>
     );

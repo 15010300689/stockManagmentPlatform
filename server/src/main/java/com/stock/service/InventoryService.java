@@ -342,6 +342,253 @@ public class InventoryService {
     }
 
     /**
+     * 将库存行 enrich 为前端展示结构
+     */
+    private List<Map<String, Object>> enrichInventoryRows(List<Inventory> records) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Inventory r : records) {
+            Map<String, Object> row = new HashMap<>();
+            Product p = productMapper.findById(r.getProductId());
+            Warehouse w = warehouseMapper.findById(r.getWarehouseId());
+            Position pos = (r.getPositionId() != null) ? positionMapper.findById(r.getPositionId()) : null;
+            row.put("productId", r.getProductId());
+            row.put("productName", p != null ? p.getName() : "");
+            row.put("warehouseId", r.getWarehouseId());
+            row.put("warehouseName", w != null ? w.getName() : "");
+            row.put("positionId", r.getPositionId());
+            row.put("positionCode", pos != null ? pos.getCode() : "");
+            row.put("positionName", pos != null ? (pos.getName() != null ? pos.getName() : pos.getCode()) : "");
+            row.put("quantity", r.getQuantity());
+            row.put("updateTime", r.getUpdateTime());
+            result.add(row);
+        }
+        return result;
+    }
+
+    public List<Map<String, Object>> getInventoryByWarehouse(Integer warehouseId) {
+        if (warehouseId == null) {
+            return Collections.emptyList();
+        }
+        if (warehouseMapper.findById(warehouseId) == null) {
+            return Collections.emptyList();
+        }
+        return enrichInventoryRows(inventoryMapper.findByWarehouseId(warehouseId));
+    }
+
+    public List<Map<String, Object>> getInventoryByPosition(Integer positionId) {
+        if (positionId == null) {
+            return Collections.emptyList();
+        }
+        Position position = positionMapper.findById(positionId);
+        if (position == null) {
+            return Collections.emptyList();
+        }
+        return enrichInventoryRows(inventoryMapper.findByPositionId(positionId));
+    }
+
+    private List<Map<String, Object>> toProductBriefList(List<Inventory> inventories) {
+        List<Map<String, Object>> products = new ArrayList<>();
+        for (Inventory inv : inventories) {
+            Product prod = productMapper.findById(inv.getProductId());
+            Map<String, Object> row = new HashMap<>();
+            row.put("productId", inv.getProductId());
+            row.put("productName", prod != null ? prod.getName() : "");
+            row.put("quantity", inv.getQuantity());
+            products.add(row);
+        }
+        return products;
+    }
+
+    private Map<String, Object> buildCapacityMetrics(int used, Integer maxCapacity) {
+        Map<String, Object> metrics = new HashMap<>();
+        int max = maxCapacity == null ? 0 : maxCapacity;
+        metrics.put("usedQuantity", used);
+        if (max > 0) {
+            metrics.put("maxCapacity", max);
+            metrics.put("remainingQuantity", Math.max(max - used, 0));
+            metrics.put("utilizationPercent", Math.min(100, (int) Math.round(used * 100.0 / max)));
+        } else {
+            metrics.put("maxCapacity", 0);
+            metrics.put("remainingQuantity", null);
+            metrics.put("utilizationPercent", null);
+        }
+        return metrics;
+    }
+
+    /**
+     * 仓库库存概览：按仓位汇总占用、剩余容量及商品列表
+     */
+    public Map<String, Object> getWarehouseInventoryOverview(Integer warehouseId) {
+        Map<String, Object> result = new HashMap<>();
+        Warehouse warehouse = warehouseMapper.findById(warehouseId);
+        if (warehouse == null) {
+            return result;
+        }
+        result.put("warehouseId", warehouseId);
+        result.put("warehouseName", warehouse.getName());
+
+        List<Inventory> inventories = inventoryMapper.findByWarehouseId(warehouseId);
+        Map<Integer, List<Inventory>> grouped = new LinkedHashMap<>();
+        for (Inventory inv : inventories) {
+            int groupKey = inv.getPositionId() == null ? 0 : inv.getPositionId();
+            grouped.computeIfAbsent(groupKey, k -> new ArrayList<>()).add(inv);
+        }
+
+        List<Map<String, Object>> slots = new ArrayList<>();
+        int totalQuantity = 0;
+        for (Map.Entry<Integer, List<Inventory>> entry : grouped.entrySet()) {
+            List<Inventory> list = entry.getValue();
+            int used = list.stream().mapToInt(Inventory::getQuantity).sum();
+            totalQuantity += used;
+
+            Map<String, Object> slot = new HashMap<>();
+            Integer posId = entry.getKey();
+            if (posId == 0) {
+                slot.put("positionId", null);
+                slot.put("positionCode", "—");
+                slot.put("positionName", "仓库级（未指定仓位）");
+                slot.put("type", "warehouse");
+                slot.put("unit", "件");
+                slot.putAll(buildCapacityMetrics(used, 0));
+            } else {
+                Position position = positionMapper.findById(posId);
+                int maxCap = position != null && position.getMaxCapacity() != null ? position.getMaxCapacity() : 0;
+                slot.put("positionId", posId);
+                slot.put("positionCode", position != null ? position.getCode() : "");
+                slot.put("positionName", position != null ? (position.getName() != null ? position.getName() : position.getCode()) : "");
+                slot.put("type", position != null ? position.getType() : "");
+                slot.put("unit", position != null && position.getUnit() != null ? position.getUnit() : "件");
+                slot.putAll(buildCapacityMetrics(used, maxCap));
+            }
+            slot.put("skuCount", list.size());
+            slot.put("products", toProductBriefList(list));
+            slots.add(slot);
+        }
+
+        slots.sort((a, b) -> {
+            Integer idA = (Integer) a.get("positionId");
+            Integer idB = (Integer) b.get("positionId");
+            if (idA == null && idB != null) return -1;
+            if (idA != null && idB == null) return 1;
+            return String.valueOf(a.get("positionCode")).compareTo(String.valueOf(b.get("positionCode")));
+        });
+
+        result.put("slots", slots);
+        result.put("totalQuantity", totalQuantity);
+        result.put("totalSku", inventories.size());
+        result.put("slotCount", slots.size());
+        return result;
+    }
+
+    /**
+     * 仓位库存概览：容量占用 + 商品明细
+     */
+    public Map<String, Object> getPositionInventoryOverview(Integer positionId) {
+        Position position = positionMapper.findById(positionId);
+        if (position == null) {
+            return Collections.emptyMap();
+        }
+        List<Inventory> inventories = inventoryMapper.findByPositionId(positionId);
+        int used = inventories.stream().mapToInt(Inventory::getQuantity).sum();
+        int maxCap = position.getMaxCapacity() != null ? position.getMaxCapacity() : 0;
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("positionId", positionId);
+        result.put("positionCode", position.getCode());
+        result.put("positionName", position.getName() != null ? position.getName() : position.getCode());
+        result.put("type", position.getType());
+        result.put("warehouseId", position.getWarehouseId());
+        Warehouse warehouse = warehouseMapper.findById(position.getWarehouseId());
+        result.put("warehouseName", warehouse != null ? warehouse.getName() : "");
+        result.put("unit", position.getUnit() != null ? position.getUnit() : "件");
+        result.putAll(buildCapacityMetrics(used, maxCap));
+        result.put("skuCount", inventories.size());
+        result.put("products", toProductBriefList(inventories));
+        result.put("items", enrichInventoryRows(inventories));
+        return result;
+    }
+
+    /**
+     * 仓库下各仓位占用摘要（供仓位树列表展示）
+     */
+    public Map<Integer, Map<String, Object>> getPositionOccupancyMap(Integer warehouseId) {
+        Map<Integer, Map<String, Object>> map = new HashMap<>();
+        if (warehouseId == null) {
+            return map;
+        }
+        List<Inventory> inventories = inventoryMapper.findByWarehouseId(warehouseId);
+        Map<Integer, Integer> usedByPosition = new HashMap<>();
+        Map<Integer, Integer> skuByPosition = new HashMap<>();
+        for (Inventory inv : inventories) {
+            if (inv.getPositionId() == null) {
+                continue;
+            }
+            int posId = inv.getPositionId();
+            usedByPosition.merge(posId, inv.getQuantity(), Integer::sum);
+            skuByPosition.merge(posId, 1, Integer::sum);
+        }
+        for (Map.Entry<Integer, Integer> entry : usedByPosition.entrySet()) {
+            Position position = positionMapper.findById(entry.getKey());
+            if (position == null) {
+                continue;
+            }
+            int used = entry.getValue();
+            int maxCap = position.getMaxCapacity() != null ? position.getMaxCapacity() : 0;
+            Map<String, Object> row = new HashMap<>();
+            row.put("usedQuantity", used);
+            row.put("skuCount", skuByPosition.get(entry.getKey()));
+            row.put("maxCapacity", maxCap);
+            row.put("unit", position.getUnit() != null ? position.getUnit() : "件");
+            if (maxCap > 0) {
+                row.put("remainingQuantity", Math.max(maxCap - used, 0));
+                row.put("utilizationPercent", Math.min(100, (int) Math.round(used * 100.0 / maxCap)));
+            }
+            map.put(entry.getKey(), row);
+        }
+        return map;
+    }
+
+    public List<Map<String, Object>> getInventoryLogs(Long productId, Integer warehouseId, Integer positionId) {
+        int limit = 100;
+        List<InventoryLog> logs = inventoryMapper.findLogs(productId, warehouseId, positionId, limit);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (InventoryLog log : logs) {
+            Map<String, Object> row = new HashMap<>();
+            Product p = productMapper.findById(log.getProductId());
+            Warehouse w = warehouseMapper.findById(log.getWarehouseId());
+            Position pos = (log.getPositionId() != null) ? positionMapper.findById(log.getPositionId()) : null;
+            row.put("id", log.getId());
+            row.put("productId", log.getProductId());
+            row.put("productName", p != null ? p.getName() : "");
+            row.put("warehouseId", log.getWarehouseId());
+            row.put("warehouseName", w != null ? w.getName() : "");
+            row.put("positionId", log.getPositionId());
+            row.put("positionName", pos != null ? (pos.getName() != null ? pos.getName() : pos.getCode()) : "");
+            row.put("type", log.getType());
+            row.put("typeLabel", "in".equals(log.getType()) ? "入库" : "out".equals(log.getType()) ? "出库" : log.getType());
+            row.put("amount", log.getAmount());
+            row.put("remark", log.getRemark());
+            row.put("createTime", log.getCreateTime());
+            result.add(row);
+        }
+        return result;
+    }
+
+    private boolean validateWarehouseAndPosition(Integer warehouseId, Integer positionId) {
+        if (warehouseId == null) {
+            return false;
+        }
+        if (warehouseMapper.findById(warehouseId) == null) {
+            return false;
+        }
+        if (positionId == null) {
+            return true;
+        }
+        Position position = positionMapper.findById(positionId);
+        return position != null && warehouseId.equals(position.getWarehouseId());
+    }
+
+    /**
      * 库存调整（入库/出库），事务控制保证一致性
      */
     @Transactional(rollbackFor = Exception.class)
@@ -350,6 +597,9 @@ public class InventoryService {
         Product product = productMapper.findById(productId);
         if (product == null) return false;
         if (amount <= 0) return false;
+        if (!validateWarehouseAndPosition(warehouseId, positionId)) {
+            return false;
+        }
 
         // 查找或创建库存记录
         Inventory inv = inventoryMapper.findOne(productId, warehouseId, positionId);

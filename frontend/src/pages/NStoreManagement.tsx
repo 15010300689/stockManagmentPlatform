@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import QueryForm from '../components/StoreManagement/QueryForm';
 import DataList from '../components/StoreManagement/DataList';
 import AddStoreModal from '../components/StoreManagement/AddStoreModal';
+import LocationInventoryDrawer from '../components/inventory/LocationInventoryDrawer';
 import { requestWithAuth } from '../api/client';
 import { storeList } from '../mock/storeList';
 import type { StoreItem } from '../types/inventory';
@@ -104,6 +105,8 @@ function StoreManagement(): JSX.Element {
     const [pageNo, setPageNo] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(fallbackStores.length);
+    const [inventoryDrawerOpen, setInventoryDrawerOpen] = useState(false);
+    const [inventoryWarehouse, setInventoryWarehouse] = useState<StoreItem | null>(null);
 
     const requestTableData = useCallback(async () => {
         setLoading(true);
@@ -217,7 +220,7 @@ function StoreManagement(): JSX.Element {
             title: '操作',
             dataIndex: 'operation',
             key: 'operation',
-            width: 200,
+            width: 260,
             align: 'center',
             fixed: 'right',
             render: (_, record) => (
@@ -225,9 +228,19 @@ function StoreManagement(): JSX.Element {
                     <Button
                         type="link"
                         size="small"
+                        onClick={() => {
+                            setInventoryWarehouse(record);
+                            setInventoryDrawerOpen(true);
+                        }}
+                    >
+                        库存概览
+                    </Button>
+                    <Button
+                        type="link"
+                        size="small"
                         onClick={() => handleView(record)}
                     >
-                        查看
+                        仓位
                     </Button>
                     <Button
                         type="link"
@@ -409,6 +422,16 @@ function StoreManagement(): JSX.Element {
                     setIsAddModalOpen(false);
                 }}
                 onSubmit={handleSubmit}
+            />
+            <LocationInventoryDrawer
+                open={inventoryDrawerOpen}
+                onClose={() => {
+                    setInventoryDrawerOpen(false);
+                    setInventoryWarehouse(null);
+                }}
+                mode="warehouse"
+                warehouseId={inventoryWarehouse?.id}
+                warehouseName={inventoryWarehouse?.name}
             />
         </Card>
     );

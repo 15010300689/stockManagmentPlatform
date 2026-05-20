@@ -572,6 +572,83 @@ export async function mockApiFetch(url: string, options: RequestInit = {}): Prom
         });
     }
 
+    const storeOverviewQueryMatch =
+        pathname.match(/^\/api\/stores\/(\d+)\/inventory$/) && parsedUrl.searchParams.get('overview') === 'true';
+    if (storeOverviewQueryMatch && method === 'GET') {
+        return jsonResponse({
+            warehouseId: Number(storeOverviewQueryMatch[1]),
+            warehouseName: 'mock仓库',
+            totalQuantity: 0,
+            totalSku: 0,
+            slotCount: 0,
+            slots: [],
+        });
+    }
+
+    const positionOverviewQueryMatch =
+        pathname.match(/^\/api\/positions\/(\d+)\/inventory$/) && parsedUrl.searchParams.get('overview') === 'true';
+    if (positionOverviewQueryMatch && method === 'GET') {
+        return jsonResponse({
+            positionId: Number(positionOverviewQueryMatch[1]),
+            positionCode: 'MOCK',
+            positionName: 'mock仓位',
+            usedQuantity: 0,
+            skuCount: 0,
+            products: [],
+        });
+    }
+
+    const storeOverviewMatch = pathname.match(/^\/api\/stores\/(\d+)\/inventory\/overview$/);
+    if (storeOverviewMatch && method === 'GET') {
+        return jsonResponse({
+            warehouseId: Number(storeOverviewMatch[1]),
+            warehouseName: 'mock仓库',
+            totalQuantity: 0,
+            totalSku: 0,
+            slotCount: 0,
+            slots: [],
+        });
+    }
+
+    const positionOverviewMatch = pathname.match(/^\/api\/positions\/(\d+)\/inventory\/overview$/);
+    if (positionOverviewMatch && method === 'GET') {
+        return jsonResponse({
+            positionId: Number(positionOverviewMatch[1]),
+            positionCode: 'MOCK',
+            positionName: 'mock仓位',
+            usedQuantity: 0,
+            skuCount: 0,
+            products: [],
+        });
+    }
+
+    const occupancyMatch = pathname.match(/^\/api\/stores\/(\d+)\/position-occupancy$/);
+    if (occupancyMatch && method === 'GET') {
+        return jsonResponse({});
+    }
+
+    const storeInventoryMatch = pathname.match(/^\/api\/stores\/(\d+)\/inventory$/);
+    if (storeInventoryMatch && method === 'GET') {
+        return jsonResponse([]);
+    }
+
+    const positionInventoryMatch = pathname.match(/^\/api\/positions\/(\d+)\/inventory$/);
+    if (positionInventoryMatch && method === 'GET') {
+        return jsonResponse([]);
+    }
+
+    if (pathname === '/api/inventory/by-warehouse' && method === 'GET') {
+        return jsonResponse([]);
+    }
+
+    if (pathname === '/api/inventory/by-position' && method === 'GET') {
+        return jsonResponse([]);
+    }
+
+    if (pathname === '/api/inventory/logs' && method === 'GET') {
+        return jsonResponse([]);
+    }
+
     if (pathname === '/api/positions' && method === 'GET') {
         const warehouseId = parsedUrl.searchParams.get('warehouseId');
         const code = (parsedUrl.searchParams.get('code') || '').toLowerCase();

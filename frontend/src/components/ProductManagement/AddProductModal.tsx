@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Button, Input, InputNumber, Form, Space, Select, TreeSelect, Switch, message } from 'antd';
 import { currencyConfig } from '../../config/currencyConfig';
 import { unitConfig } from '../../config/unitConfig';
 import { requestWithAuth } from '../../api/client';
+import { buildPositionTree } from '../../utils/positionTree';
 import type { PositionItem, StoreItem } from '../../types/inventory';
 
 const API_BASE = '/api';
@@ -15,16 +16,7 @@ interface AddProductModalProps {
     warehouseList?: StoreItem[];
     positionTree?: PositionItem[];
     onClose: () => void;
-    /** 保存成功后回调（刷新列表等） */
     onSuccess?: () => void;
-}
-
-interface PositionTreeNode {
-    id: number;
-    title: string;
-    value: number;
-    warehouseId: number;
-    children?: PositionTreeNode[];
 }
 
 interface ProductFormValues {
@@ -73,6 +65,37 @@ function writeLocationPrefs(productId: string, warehouseId?: number, positionId?
     );
 }
 
+function mapPositionRow(item: Record<string, unknown>): PositionItem | null {
+    const id = item.id != null ? Number(item.id) : NaN;
+    const warehouseId = Number(item.warehouseId ?? item.warehouse_id);
+    if (Number.isNaN(id) || Number.isNaN(warehouseId)) {
+        return null;
+    }
+    const rawParent = item.parentId ?? item.parent_id;
+    return {
+        id,
+        warehouseId,
+        parentId: rawParent == null || rawParent === '' ? null : Number(rawParent),
+        code: String(item.code || ''),
+        name: item.name ? String(item.name) : '',
+        status: String(item.status ?? '1'),
+        type: String(item.type || 'area'),
+        maxCapacity: Number(item.maxCapacity ?? item.max_capacity ?? 0),
+        unit: item.unit ? String(item.unit) : undefined,
+    };
+}
+
+function parsePositionList(payload: unknown): PositionItem[] {
+    const rawList = Array.isArray(payload)
+        ? payload
+        : payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)
+            ? (payload as { data: Record<string, unknown>[] }).data
+            : [];
+    return rawList
+        .map((row) => mapPositionRow(row as Record<string, unknown>))
+        .filter((item): item is PositionItem => item != null);
+}
+
 function AddProductModal(props: AddProductModalProps): JSX.Element {
     const [form] = Form.useForm<ProductFormValues>();
     const {
@@ -83,30 +106,53 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
         onSuccess,
     } = props;
 
-    const [selectedWarehouse, setSelectedWarehouse] = useState<number | null>(null);
+    const [positionsForWarehouse, setPositionsForWarehouse] = useState<PositionItem[]>([]);
+    const [positionsLoading, setPositionsLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [detailLoading, setDetailLoading] = useState(false);
 
-    const buildTree = (data: PositionItem[], parentId: number | null = null): PositionTreeNode[] => {
-        return data
-            .filter((item) => (item.parentId === null && parentId === null)
-                || (item.parentId !== null && parentId !== null && String(item.parentId) === String(parentId)))
-            .map((item) => {
-                const children = buildTree(data, item.id);
-                return {
-                    id: item.id,
-                    title: `${item.code}${item.name ? ' - ' + item.name : ''}`,
-                    value: item.id,
-                    warehouseId: item.warehouseId,
-                    children: children.length > 0 ? children : undefined,
-                };
-            });
-    };
+    const selectedWarehouse = Form.useWatch('defaultWarehouseId', form);
 
-    const filteredTree = (): PositionTreeNode[] => {
-        if (!selectedWarehouse) return [];
-        return buildTree(positionTree.filter((item) => item.warehouseId === selectedWarehouse));
-    };
+    const loadPositionsByWarehouse = useCallback(async (warehouseId: number) => {
+        setPositionsLoading(true);
+        try {
+            const res = await requestWithAuth(
+                `${API_BASE}/positions?warehouseId=${encodeURIComponent(String(warehouseId))}`
+            );
+            const payload = await res.json();
+            if (!res.ok) {
+                message.error((payload as ApiResult)?.message || '加载仓位列表失败');
+                setPositionsForWarehouse([]);
+                return;
+            }
+            setPositionsForWarehouse(parsePositionList(payload));
+        } catch (e) {
+            message.error('加载仓位列表失败: ' + (e as Error).message);
+            setPositionsForWarehouse([]);
+        } finally {
+            setPositionsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!visible || !selectedWarehouse) {
+            setPositionsForWarehouse([]);
+            return;
+        }
+        void loadPositionsByWarehouse(Number(selectedWarehouse));
+    }, [visible, selectedWarehouse, loadPositionsByWarehouse]);
+
+    const positionTreeData = useMemo(() => {
+        if (!selectedWarehouse) {
+            return [];
+        }
+        const whId = Number(selectedWarehouse);
+        const source =
+            positionsForWarehouse.length > 0
+                ? positionsForWarehouse
+                : positionTree.filter((item) => Number(item.warehouseId) === whId);
+        return buildPositionTree(source, whId);
+    }, [selectedWarehouse, positionsForWarehouse, positionTree]);
 
     const loadProductDetail = useCallback(async () => {
         if (!visible || !currentProductId) return;
@@ -120,15 +166,13 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
             }
             const p = data as ApiProduct;
             const prefs = readLocationPrefs(String(p.id));
-            const wh = prefs.defaultWarehouseId;
-            setSelectedWarehouse(wh ?? null);
             form.setFieldsValue({
                 name: p.name,
                 category: p.category || '',
                 price: Number(p.price),
                 safeStock: p.safeStock != null ? Number(p.safeStock) : undefined,
                 status: (p.status ?? 1) === 1,
-                defaultWarehouseId: wh,
+                defaultWarehouseId: prefs.defaultWarehouseId,
                 defaultPositionId: prefs.defaultPositionId,
             });
         } catch (e) {
@@ -141,17 +185,15 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
     useEffect(() => {
         if (!visible) {
             form.resetFields();
-            setSelectedWarehouse(null);
+            setPositionsForWarehouse([]);
             return;
         }
         if (currentProductId) {
             void loadProductDetail();
         } else {
             form.resetFields();
-            form.setFieldsValue({
-                status: true,
-            });
-            setSelectedWarehouse(null);
+            form.setFieldsValue({ status: true });
+            setPositionsForWarehouse([]);
         }
     }, [visible, currentProductId, form, loadProductDetail]);
 
@@ -212,6 +254,7 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
             title={currentProductId ? '编辑商品' : '添加商品'}
             onCancel={props.onClose}
             confirmLoading={detailLoading}
+            destroyOnHidden
         >
             <Form form={form} layout="vertical" onFinish={onFinish}>
                 {currentProductId ? (
@@ -229,7 +272,10 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
                     <Select
                         allowClear
                         placeholder="可选"
-                        options={currencyConfig.map((item: { label: string; code: string }) => ({ label: item.label, value: item.code }))}
+                        options={currencyConfig.map((item: { label: string; code: string }) => ({
+                            label: item.label,
+                            value: item.code,
+                        }))}
                     />
                 </Form.Item>
                 <Form.Item label="价格" name="price" rules={[{ required: true, message: '请输入价格' }]}>
@@ -239,10 +285,13 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
                     <Select
                         allowClear
                         placeholder="可选"
-                        options={unitConfig.map((item: { label: string; code: string }) => ({ label: item.label, value: item.code }))}
+                        options={unitConfig.map((item: { label: string; code: string }) => ({
+                            label: item.label,
+                            value: item.code,
+                        }))}
                     />
                 </Form.Item>
-                <Form.Item label="安全库存" name="safeStock" tooltip="低于该值可在低库存预警中关注（需后端低库存逻辑配合）">
+                <Form.Item label="安全库存" name="safeStock" tooltip="低于该值可在低库存预警中关注">
                     <InputNumber style={{ width: '100%' }} min={0} placeholder="可选，整数" precision={0} />
                 </Form.Item>
                 <Form.Item label="状态" name="status" valuePropName="checked">
@@ -258,30 +307,53 @@ function AddProductModal(props: AddProductModalProps): JSX.Element {
                         />
                     </Form.Item>
                 )}
-                <Form.Item label="默认仓库" name="defaultWarehouseId" tooltip="仅保存在浏览器本地，用于后续库存操作默认选中">
+                <Form.Item
+                    label="默认仓库"
+                    name="defaultWarehouseId"
+                    tooltip="保存在浏览器本地，用于后续入库等操作默认选中"
+                >
                     <Select
-                        placeholder="可选"
+                        placeholder="请选择仓库"
                         allowClear
-                        options={warehouseList.map((item) => ({ label: item.name, value: item.id, disabled: item.status !== '1' }))}
-                        onChange={(val: number | undefined) => {
-                            setSelectedWarehouse(val || null);
+                        options={warehouseList.map((item) => ({
+                            label: item.name,
+                            value: item.id,
+                            disabled: item.status !== '1',
+                        }))}
+                        onChange={() => {
                             form.setFieldValue('defaultPositionId', undefined);
                         }}
                     />
                 </Form.Item>
-                <Form.Item label="默认仓位" name="defaultPositionId" tooltip="依赖默认仓库，数据仅存本地">
+                <Form.Item
+                    label="默认仓位"
+                    name="defaultPositionId"
+                    tooltip="需先选仓库；保存在浏览器本地"
+                >
                     <TreeSelect
-                        placeholder="可选"
+                        placeholder={selectedWarehouse ? '请选择仓位（可选）' : '请先选择仓库'}
                         allowClear
                         disabled={!selectedWarehouse}
-                        treeData={filteredTree()}
+                        loading={positionsLoading}
+                        treeData={positionTreeData}
                         treeDefaultExpandAll
-                        fieldNames={{ label: 'title', value: 'id', children: 'children' }}
+                        showSearch
+                        treeNodeFilterProp="title"
+                        fieldNames={{ label: 'title', value: 'value', children: 'children' }}
+                        notFoundContent={
+                            positionsLoading
+                                ? '加载中…'
+                                : selectedWarehouse
+                                    ? '该仓库暂无仓位，请先在仓位管理中维护'
+                                    : '请先选择仓库'
+                        }
                     />
                 </Form.Item>
                 <Form.Item>
                     <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                        <Button onClick={props.onClose} disabled={submitting}>取消</Button>
+                        <Button onClick={props.onClose} disabled={submitting}>
+                            取消
+                        </Button>
                         <Button type="primary" htmlType="submit" loading={submitting}>
                             保存
                         </Button>

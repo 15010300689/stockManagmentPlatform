@@ -48,4 +48,34 @@
         DELETE FROM inventory WHERE product_id = #{productId}
     </delete>
 
+    <select id="findByWarehouseId" resultType="com.stock.entity.Inventory">
+        SELECT id, product_id AS productId, warehouse_id AS warehouseId,
+               position_id AS positionId, quantity, update_time AS updateTime
+        FROM inventory
+        WHERE warehouse_id = #{warehouseId} AND quantity > 0
+        ORDER BY product_id, position_id
+    </select>
+
+    <select id="findByPositionId" resultType="com.stock.entity.Inventory">
+        SELECT id, product_id AS productId, warehouse_id AS warehouseId,
+               position_id AS positionId, quantity, update_time AS updateTime
+        FROM inventory
+        WHERE position_id = #{positionId} AND quantity > 0
+        ORDER BY product_id
+    </select>
+
+    <select id="findLogs" resultType="com.stock.entity.InventoryLog">
+        SELECT id, product_id AS productId, warehouse_id AS warehouseId,
+               position_id AS positionId, type, amount, remark,
+               operator_id AS operatorId, create_time AS createTime
+        FROM inventory_log
+        <where>
+            <if test="productId != null">AND product_id = #{productId}</if>
+            <if test="warehouseId != null">AND warehouse_id = #{warehouseId}</if>
+            <if test="positionId != null">AND position_id = #{positionId}</if>
+        </where>
+        ORDER BY create_time DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

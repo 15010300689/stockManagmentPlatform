@@ -57,9 +57,6 @@ interface StoreItem {
     status: string;
 }
 
-interface StockSubmitValues {
-    amount: number;
-}
 
 interface ProductListResponse {
     data?: ProductItem[];
@@ -103,7 +100,6 @@ function ProductManagement() {
 
     // 表单实例
     const [productForm] = Form.useForm();
-    const [stockForm] = Form.useForm();
 
     // 当前操作的商品ID和类型
     const [currentProductId, setCurrentProductId] = useState<string | null>(null);
@@ -198,19 +194,30 @@ function ProductManagement() {
 
             if (positionsRes.ok) {
                 const positionsData = await positionsRes.json();
-                if (Array.isArray(positionsData)) {
+                const rawPositions = Array.isArray(positionsData)
+                    ? positionsData
+                    : Array.isArray(positionsData?.data)
+                        ? positionsData.data
+                        : null;
+                if (rawPositions) {
                     setPositionOptions(
-                        positionsData.map((item: Record<string, unknown>) => ({
-                            id: Number(item.id),
-                            warehouseId: Number(item.warehouseId ?? item.warehouse_id),
-                            parentId: item.parentId === undefined ? (item.parent_id as number | null) : (item.parentId as number | null),
-                            code: String(item.code || ''),
-                            name: item.name ? String(item.name) : '',
-                            status: item.status ? String(item.status) : '1',
-                            type: item.type ? String(item.type) : 'area',
-                            maxCapacity: Number(item.maxCapacity ?? item.max_capacity ?? 0),
-                            unit: item.unit ? String(item.unit) : undefined,
-                        }))
+                        rawPositions.map((item: Record<string, unknown>) => {
+                            const rawParent = item.parentId ?? item.parent_id;
+                            return {
+                                id: Number(item.id),
+                                warehouseId: Number(item.warehouseId ?? item.warehouse_id),
+                                parentId:
+                                    rawParent == null || rawParent === ''
+                                        ? null
+                                        : Number(rawParent),
+                                code: String(item.code || ''),
+                                name: item.name ? String(item.name) : '',
+                                status: item.status ? String(item.status) : '1',
+                                type: item.type ? String(item.type) : 'area',
+                                maxCapacity: Number(item.maxCapacity ?? item.max_capacity ?? 0),
+                                unit: item.unit ? String(item.unit) : undefined,
+                            };
+                        })
                     );
                 }
             }
@@ -281,35 +288,9 @@ function ProductManagement() {
             setCurrentProductId(String(productId));
             setCurrentStockType(type);
             setCurrentProduct(product);
-            stockForm.resetFields();
             setStockModalVisible(true);
         } catch (error) {
             message.error('获取商品信息失败: ' + (error as Error).message);
-        }
-    };
-
-    // 提交入库/出库
-    const handleStockSubmit = async (values: StockSubmitValues) => {
-        const endpoint = currentStockType === 'in' ? 'stock-in' : 'stock-out';
-        try {
-            const response = await requestWithAuth(`${API_BASE}/${endpoint}`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    id: currentProductId != null ? Number(currentProductId) : null,
-                    amount: values.amount
-                })
-            });
-            const result = await response.json();
-            if (response.ok) {
-                message.success(result.message || '操作成功');
-                setStockModalVisible(false);
-                loadProducts();
-                loadStatistics();
-            } else {
-                message.error(result.message || '操作失败');
-            }
-        } catch (error) {
-            message.error('操作失败: ' + (error as Error).message);
         }
     };
 
@@ -338,8 +319,9 @@ function ProductManagement() {
         setInventoryDrawerVisible(true);
     };
 
-    const handleInventoryAdjust = (values: unknown) => {
-        console.log('库存调整', values);
+    const handleInventoryAdjust = () => {
+        void loadProducts();
+        loadStatistics();
     };
 
     // 表格列定义
@@ -552,6 +534,8 @@ function ProductManagement() {
                 stockModalVisible={stockModalVisible}
                 currentStockType={currentStockType}
                 currentProduct={currentProduct}
+                warehouseList={warehouseOptions}
+                positionList={positionOptions as unknown as import('../types/inventory').PositionItem[]}
                 onClose={() => {
                     setStockModalVisible(false);
                 }}
@@ -559,7 +543,7 @@ function ProductManagement() {
                     loadProducts();
                     loadStatistics();
                 }}
-            ></OutOrInStockModal>
+            />
 
             {/* 统计信息模态框 */}
             <StatisticsModal
@@ -591,6 +575,7 @@ function ProductManagement() {
                 warehouseList={warehouseOptions as unknown as import('../types/inventory').StoreItem[]}
                 positionList={positionOptions as unknown as import('../types/inventory').PositionItem[]}
                 onAdjust={handleInventoryAdjust}
+                onProductUpdated={handleInventoryAdjust}
             />
         </div>
     );
