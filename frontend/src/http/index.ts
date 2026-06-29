@@ -224,8 +224,10 @@ class Request {
                 }
             });
         } catch (error) {
-            const mockRes = await mockApiFetch(url, options);
-            if (mockRes) return mockRes;
+            if (isMockEnabled()) {
+                const mockRes = await mockApiFetch(url, options);
+                if (mockRes) return mockRes;
+            }
             throw this.normalizeAxiosError(error);
         }
     }
@@ -375,11 +377,13 @@ class Request {
             .get(url, mergedConfig)
             .then((res) => (resType ? (res as unknown as T) : (res.data as T)))
             .catch(async (error) => {
-                const mockData = await this.requestMockJson<T>(url, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                if (mockData !== null) return mockData;
+                if (isMockEnabled()) {
+                    const mockData = await this.requestMockJson<T>(url, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+                    if (mockData !== null) return mockData;
+                }
                 throw error;
             });
     }
@@ -422,12 +426,14 @@ class Request {
             })
             .then((res) => (resType ? (res as unknown as T) : (res.data as T)))
             .catch(async (error) => {
-                const mockData = await this.requestMockJson<T>(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
-                    body: requestData,
-                });
-                if (mockData !== null) return mockData;
+                if (isMockEnabled()) {
+                    const mockData = await this.requestMockJson<T>(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+                        body: requestData,
+                    });
+                    if (mockData !== null) return mockData;
+                }
                 throw error;
             });
     }

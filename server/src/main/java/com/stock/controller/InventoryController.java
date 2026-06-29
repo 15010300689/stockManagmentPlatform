@@ -232,12 +232,16 @@ public class InventoryController {
                 || req.getType() == null) {
             return Result.error("参数不完整");
         }
-        boolean success = inventoryService.adjustInventory(
-                req.getProductId(), req.getWarehouseId(), req.getPositionId(),
-                req.getAmount(), req.getType(), req.getRemark());
-        if (success) {
-            return Result.ok("操作成功");
+        try {
+            boolean success = inventoryService.adjustInventory(
+                    req.getProductId(), req.getWarehouseId(), req.getPositionId(),
+                    req.getAmount(), req.getType(), req.getRemark());
+            if (success) {
+                return Result.ok("操作成功");
+            }
+            return Result.error("操作失败，库存不足或商品不存在");
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
         }
-        return Result.error("操作失败，库存不足或商品不存在");
     }
 }

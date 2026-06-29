@@ -79,10 +79,14 @@ public class ProductController {
      */
     @DeleteMapping("/product")
     public Result deleteProduct(@RequestParam Long id) {
-        if (productService.deleteProduct(id)) {
-            return Result.ok("商品删除成功");
+        try {
+            if (productService.deleteProduct(id)) {
+                return Result.ok("商品删除成功");
+            }
+            return Result.error("删除失败");
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
         }
-        return Result.error("删除失败");
     }
 
     /**
@@ -99,11 +103,15 @@ public class ProductController {
         if (req.getAmount() == null || req.getAmount() <= 0) {
             return Result.error("入库数量必须大于 0");
         }
-        if (productService.stockIn(req.getId(), req.getWarehouseId(), req.getPositionId(),
-                req.getAmount(), req.getRemark())) {
-            return Result.ok("入库成功");
+        try {
+            if (productService.stockIn(req.getId(), req.getWarehouseId(), req.getPositionId(),
+                    req.getAmount(), req.getRemark())) {
+                return Result.ok("入库成功");
+            }
+            return Result.error("入库失败，请检查仓库/仓位是否正确");
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
         }
-        return Result.error("入库失败，请检查仓库/仓位是否正确");
     }
 
     /**

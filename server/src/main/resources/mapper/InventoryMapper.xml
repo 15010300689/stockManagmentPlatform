@@ -48,6 +48,15 @@
         DELETE FROM inventory WHERE product_id = #{productId}
     </delete>
 
+    <select id="countPositiveInventoryByProductId" resultType="int">
+        SELECT COUNT(*) FROM inventory
+        WHERE product_id = #{productId} AND quantity > 0
+    </select>
+
+    <select id="countLogsByProductId" resultType="int">
+        SELECT COUNT(*) FROM inventory_log WHERE product_id = #{productId}
+    </select>
+
     <select id="findByWarehouseId" resultType="com.stock.entity.Inventory">
         SELECT id, product_id AS productId, warehouse_id AS warehouseId,
                position_id AS positionId, quantity, update_time AS updateTime
@@ -62,6 +71,12 @@
         FROM inventory
         WHERE position_id = #{positionId} AND quantity > 0
         ORDER BY product_id
+    </select>
+
+    <select id="sumQuantityByPositionId" resultType="int">
+        SELECT IFNULL(SUM(quantity), 0)
+        FROM inventory
+        WHERE position_id = #{positionId}
     </select>
 
     <select id="findLogs" resultType="com.stock.entity.InventoryLog">

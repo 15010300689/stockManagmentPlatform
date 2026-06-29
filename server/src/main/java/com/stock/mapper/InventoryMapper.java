@@ -31,9 +31,15 @@ public interface InventoryMapper {
     /** 删除某商品全部库存行 */
     int deleteInventoryByProductId(@Param("productId") Long productId);
 
+    int countPositiveInventoryByProductId(@Param("productId") Long productId);
+
+    int countLogsByProductId(@Param("productId") Long productId);
+
     List<Inventory> findByWarehouseId(@Param("warehouseId") Integer warehouseId);
 
     List<Inventory> findByPositionId(@Param("positionId") Integer positionId);
+
+    int sumQuantityByPositionId(@Param("positionId") Integer positionId);
 
     List<InventoryLog> findLogs(@Param("productId") Long productId,
                                 @Param("warehouseId") Integer warehouseId,

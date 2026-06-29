@@ -7,6 +7,36 @@ USE stock;
 ALTER TABLE sys_menu
   ADD COLUMN IF NOT EXISTS required_permission_code VARCHAR(100) DEFAULT NULL COMMENT '访问该菜单所需权限码，为空表示目录或公开菜单';
 
+-- 兼容增量升级：补齐仓位/库存唯一约束，避免重复仓位编码和重复库存行
+ALTER TABLE inventory
+  ADD COLUMN IF NOT EXISTS position_key INT GENERATED ALWAYS AS (IFNULL(position_id, 0)) STORED;
+
+DROP PROCEDURE IF EXISTS add_stock_unique_indexes;
+DELIMITER //
+CREATE PROCEDURE add_stock_unique_indexes()
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'position'
+      AND index_name = 'uk_position_wh_code'
+  ) THEN
+    ALTER TABLE position ADD UNIQUE KEY uk_position_wh_code (warehouse_id, code);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'inventory'
+      AND index_name = 'uk_inv_product_wh_pos'
+  ) THEN
+    ALTER TABLE inventory ADD UNIQUE KEY uk_inv_product_wh_pos (product_id, warehouse_id, position_key);
+  END IF;
+END//
+DELIMITER ;
+CALL add_stock_unique_indexes();
+DROP PROCEDURE IF EXISTS add_stock_unique_indexes;
+
 -- 默认角色
 INSERT IGNORE INTO sys_role (id, role_name, role_code, description) VALUES
   (1, '系统管理员', 'admin',   '拥有系统所有权限'),
@@ -34,9 +64,10 @@ INSERT INTO sys_menu (id, parent_id, name, path, required_permission_code, icon,
   (5, 0, '商品管理', '/product', 'product:view', '📦', 2, 1, 1),
   (6, 0, '仓库管理', '/storeManagement', 'inventory:stores:view', '🏠', 3, 1, 1),
   (7, 0, '仓位管理', '/positionManagement', 'inventory:positions:view', '🗺️', 4, 1, 1),
-  (8, 0, '计量单位管理', '/unitManagement', 'admin:menu:view', '🧪', 5, 1, 1),
-  (9, 0, '货币管理', '/currencyManagement', 'admin:menu:view', '🪙', 6, 1, 1),
-  (10, 0, '运输途径管理', '/transportManagement', 'admin:menu:view', '✈️', 7, 1, 1)
+  (11, 0, '库存流水', '/inventoryLogs', 'inventory:logs:view', '📋', 5, 1, 1),
+  (8, 0, '计量单位管理', '/unitManagement', 'admin:menu:view', '🧪', 6, 1, 1),
+  (9, 0, '货币管理', '/currencyManagement', 'admin:menu:view', '🪙', 7, 1, 1),
+  (10, 0, '运输途径管理', '/transportManagement', 'admin:menu:view', '✈️', 8, 1, 1)
 ON DUPLICATE KEY UPDATE
   parent_id = VALUES(parent_id),
   name = VALUES(name),

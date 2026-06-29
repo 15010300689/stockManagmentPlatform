@@ -17,7 +17,9 @@ import {
     Typography,
     Row,
     Col,
-    Statistic
+    Statistic,
+    Alert,
+    Progress
 } from 'antd';
 import {
     HomeOutlined,
@@ -27,6 +29,7 @@ import {
 } from '@ant-design/icons';
 import { requestWithAuth } from '../../api/client';
 import { buildPositionTree } from '../../utils/positionTree';
+import type { PositionInventoryOverview } from '../../types/inventoryOverview';
 
 const { Text } = Typography;
 
@@ -76,6 +79,14 @@ interface AdjustFormValues {
     remark?: string;
 }
 
+interface CapacityInfo {
+    usedQuantity: number;
+    maxCapacity: number;
+    remainingQuantity?: number | null;
+    utilizationPercent?: number | null;
+    unit?: string;
+}
+
 const API_BASE = '/api';
 
 function InventoryDrawer({
@@ -93,31 +104,17 @@ function InventoryDrawer({
     const [logRows, setLogRows] = useState<LogRow[]>([]);
     const [inventoryLoading, setInventoryLoading] = useState(false);
     const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | undefined>();
+    const [capacityInfo, setCapacityInfo] = useState<CapacityInfo | null>(null);
+
+    const adjustType = Form.useWatch('type', form);
+    const adjustWarehouseId = Form.useWatch('warehouseId', form);
+    const adjustPositionId = Form.useWatch('positionId', form);
 
     const warehouseOptions = warehouseList.map((item) => ({
         label: item.name,
         value: item.id,
         disabled: item.status !== '1',
     }));
-
-    // mock 汇总兜底
-    const fallbackSummaryData = useMemo(() => {
-        const totalQuantity = product?.quantity || 0;
-        const base = Math.max(totalQuantity, 0);
-        const len = warehouseList.length || 1;
-        return warehouseList.map((w, idx) => {
-            const available = Math.max(0, Math.round((base * (len - idx)) / len));
-            const reserved = Math.round(available * 0.1);
-            return {
-                warehouseId: w.id,
-                warehouseName: w.name,
-                status: w.status,
-                available,
-                reserved,
-                total: available + reserved,
-            };
-        });
-    }, [warehouseList, product]);
 
     // 仓位明细树（展示用）
     const positionTree = useMemo(() => {
@@ -183,10 +180,10 @@ function InventoryDrawer({
             if (summaryRes.ok) {
                 const summaryPayload = await summaryRes.json();
                 setSummaryRows(
-                    Array.isArray(summaryPayload) ? (summaryPayload as SummaryRow[]) : fallbackSummaryData
+                    Array.isArray(summaryPayload) ? (summaryPayload as SummaryRow[]) : []
                 );
             } else {
-                setSummaryRows(fallbackSummaryData);
+                setSummaryRows([]);
             }
 
             if (positionsRes.ok) {
@@ -204,7 +201,8 @@ function InventoryDrawer({
             }
         } catch (error) {
             console.warn('加载库存数据失败', error);
-            setSummaryRows(fallbackSummaryData);
+            message.error('加载库存数据失败: ' + (error as Error).message);
+            setSummaryRows([]);
             setPositionRows([]);
             setLogRows([]);
         } finally {
@@ -215,6 +213,55 @@ function InventoryDrawer({
     useEffect(() => {
         void loadInventoryData();
     }, [visible, product?.id]);
+
+    useEffect(() => {
+        const loadCapacityInfo = async () => {
+            if (!visible || adjustType !== 'in' || !adjustPositionId) {
+                setCapacityInfo(null);
+                return;
+            }
+            try {
+                const response = await requestWithAuth(
+                    `${API_BASE}/positions/${encodeURIComponent(String(adjustPositionId))}/inventory/overview`
+                );
+                if (!response.ok) {
+                    setCapacityInfo(null);
+                    return;
+                }
+                const data = (await response.json()) as PositionInventoryOverview;
+                setCapacityInfo({
+                    usedQuantity: Number(data.usedQuantity ?? 0),
+                    maxCapacity: Number(data.maxCapacity ?? 0),
+                    remainingQuantity: data.remainingQuantity,
+                    utilizationPercent: data.utilizationPercent,
+                    unit: data.unit || '件',
+                });
+            } catch {
+                setCapacityInfo(null);
+            }
+        };
+        void loadCapacityInfo();
+    }, [visible, adjustType, adjustPositionId]);
+
+    const currentLocationStock = useMemo(() => {
+        if (adjustType !== 'out' || !adjustWarehouseId) {
+            return null;
+        }
+        if (adjustPositionId != null) {
+            const row = positionRows.find((item) => Number(item.positionId) === Number(adjustPositionId));
+            return row?.quantity ?? 0;
+        }
+        const warehouseTotal = summaryRows.find((item) => Number(item.warehouseId) === Number(adjustWarehouseId));
+        return warehouseTotal?.total ?? 0;
+    }, [adjustType, adjustWarehouseId, adjustPositionId, positionRows, summaryRows]);
+
+    const maxAdjustIn =
+        adjustType === 'in' &&
+        capacityInfo?.maxCapacity &&
+        capacityInfo.maxCapacity > 0 &&
+        capacityInfo.remainingQuantity != null
+            ? Math.max(Number(capacityInfo.remainingQuantity), 0)
+            : undefined;
 
     const handleAdjust = async (values: AdjustFormValues) => {
         if (!product?.id) return;
@@ -288,7 +335,7 @@ function InventoryDrawer({
                                         size="small"
                                         rowKey="warehouseId"
                                         loading={inventoryLoading}
-                                        dataSource={summaryRows.length ? summaryRows : fallbackSummaryData}
+                                        dataSource={summaryRows}
                                         columns={summaryColumns}
                                         pagination={false}
                                     />
@@ -316,6 +363,7 @@ function InventoryDrawer({
                                             onChange={(v) => {
                                                 setSelectedWarehouseId(v);
                                                 form.setFieldValue('positionId', undefined);
+                                                setCapacityInfo(null);
                                             }}
                                         />
                                     </Form.Item>
@@ -336,14 +384,54 @@ function InventoryDrawer({
                                             }}
                                         />
                                     </Form.Item>
+                                    {adjustType === 'out' && currentLocationStock != null && (
+                                        <Alert
+                                            type={currentLocationStock > 0 ? 'info' : 'warning'}
+                                            showIcon
+                                            style={{ marginBottom: 16 }}
+                                            message={`当前可出库存：${currentLocationStock}`}
+                                            description={adjustPositionId ? '按当前选择仓位统计。' : '未选择仓位时按当前仓库总库存统计。'}
+                                        />
+                                    )}
+                                    {adjustType === 'in' && capacityInfo?.maxCapacity ? (
+                                        <Alert
+                                            type={(capacityInfo.utilizationPercent ?? 0) >= 90 ? 'warning' : 'info'}
+                                            showIcon
+                                            style={{ marginBottom: 16 }}
+                                            message={`仓位容量：已占 ${capacityInfo.usedQuantity}/${capacityInfo.maxCapacity} ${capacityInfo.unit || '件'}，剩余 ${capacityInfo.remainingQuantity ?? 0}`}
+                                            description={
+                                                <Progress
+                                                    percent={capacityInfo.utilizationPercent ?? 0}
+                                                    size="small"
+                                                    status={(capacityInfo.utilizationPercent ?? 0) >= 100 ? 'exception' : 'active'}
+                                                    style={{ maxWidth: 360 }}
+                                                />
+                                            }
+                                        />
+                                    ) : null}
                                     <Form.Item
                                         label="数量"
                                         name="amount"
-                                        rules={[{ required: true, message: '请输入数量' }]}
+                                        rules={[
+                                            { required: true, message: '请输入数量' },
+                                            { type: 'number', min: 1, message: '数量必须大于0' },
+                                            {
+                                                validator: (_, value: number) => {
+                                                    if (adjustType === 'in' && maxAdjustIn != null && value > maxAdjustIn) {
+                                                        return Promise.reject(new Error(`入库数量不能超过仓位剩余容量（${maxAdjustIn}）`));
+                                                    }
+                                                    if (adjustType === 'out' && currentLocationStock != null && value > currentLocationStock) {
+                                                        return Promise.reject(new Error(`出库数量不能超过当前可用库存（${currentLocationStock}）`));
+                                                    }
+                                                    return Promise.resolve();
+                                                },
+                                            },
+                                        ]}
                                     >
                                         <InputNumber
                                             style={{ width: '100%' }}
                                             min={1}
+                                            max={adjustType === 'in' ? maxAdjustIn : currentLocationStock ?? undefined}
                                             placeholder="请输入数量"
                                         />
                                     </Form.Item>

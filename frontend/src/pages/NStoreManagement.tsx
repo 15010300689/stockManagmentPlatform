@@ -7,7 +7,6 @@ import DataList from '../components/StoreManagement/DataList';
 import AddStoreModal from '../components/StoreManagement/AddStoreModal';
 import LocationInventoryDrawer from '../components/inventory/LocationInventoryDrawer';
 import { requestWithAuth } from '../api/client';
-import { storeList } from '../mock/storeList';
 import type { StoreItem } from '../types/inventory';
 
 interface QueryParams {
@@ -21,8 +20,6 @@ interface QueryValues {
 }
 
 const API_BASE = '/api';
-
-const fallbackStores = [...storeList];
 
 interface StoreResponseItem {
     id?: number | string;
@@ -41,10 +38,6 @@ interface StoreListResponse {
     total?: number;
     pageNo?: number;
     pageSize?: number;
-}
-
-function shouldFallbackByStatus(status: number): boolean {
-    return status === 404 || status === 405 || status >= 500;
 }
 
 async function getErrorMessage(response: Response): Promise<string> {
@@ -100,11 +93,11 @@ function StoreManagement(): JSX.Element {
     const [mode, setMode] = useState<'add' | 'edit'>('add');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [currentStoreInfo, setCurrentStoreInfo] = useState<Partial<StoreItem>>({});
-    const [dataSource, setDataSource] = useState<StoreItem[]>(fallbackStores);
+    const [dataSource, setDataSource] = useState<StoreItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [pageNo, setPageNo] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [total, setTotal] = useState(fallbackStores.length);
+    const [total, setTotal] = useState(0);
     const [inventoryDrawerOpen, setInventoryDrawerOpen] = useState(false);
     const [inventoryWarehouse, setInventoryWarehouse] = useState<StoreItem | null>(null);
 
@@ -147,12 +140,12 @@ function StoreManagement(): JSX.Element {
                 setPageSize(Number(payload.pageSize ?? pageSize));
             }
         } catch (error) {
-            setDataSource(fallbackStores);
-            setTotal(fallbackStores.length);
+            setDataSource([]);
+            setTotal(0);
             setPageNo(1);
             setPageSize(10);
-            message.warning('后端服务异常，已切换为 mock 数据展示');
-            console.warn('load stores failed, fallback to mock data:', error);
+            message.error('加载仓库失败: ' + (error as Error).message);
+            console.warn('load stores failed:', error);
         } finally {
             setLoading(false);
         }
@@ -295,9 +288,6 @@ function StoreManagement(): JSX.Element {
             });
 
             if (!response.ok) {
-                if (shouldFallbackByStatus(response.status)) {
-                    throw new Error(`fallback:${response.status}`);
-                }
                 throw new Error(await getErrorMessage(response));
             }
 
@@ -305,12 +295,6 @@ function StoreManagement(): JSX.Element {
             await requestTableData();
         } catch (error) {
             const errorMsg = (error as Error).message || '';
-            if (errorMsg.startsWith('fallback:')) {
-                setDataSource((prev) => prev.filter((item) => item.id !== record.id));
-                setTotal((prev) => Math.max(prev - 1, 0));
-                message.warning('后端删除接口不可用，已切换为 mock 删除');
-                return;
-            }
             message.error('删除失败: ' + errorMsg);
         } finally {
             setLoading(false);
@@ -331,9 +315,6 @@ function StoreManagement(): JSX.Element {
                     body: JSON.stringify(values)
                 });
                 if (!response.ok) {
-                    if (shouldFallbackByStatus(response.status)) {
-                        throw new Error(`fallback:${response.status}`);
-                    }
                     throw new Error(await getErrorMessage(response));
                 }
 
@@ -345,9 +326,6 @@ function StoreManagement(): JSX.Element {
                     body: JSON.stringify(values)
                 });
                 if (!response.ok) {
-                    if (shouldFallbackByStatus(response.status)) {
-                        throw new Error(`fallback:${response.status}`);
-                    }
                     throw new Error(await getErrorMessage(response));
                 }
 
@@ -358,33 +336,6 @@ function StoreManagement(): JSX.Element {
             setCurrentStoreInfo({});
         } catch (error) {
             const errorMsg = (error as Error).message || '';
-            if (errorMsg.startsWith('fallback:')) {
-                if (submitMode === 'add') {
-                    const newStore: StoreItem = {
-                        id: Date.now(),
-                        code: values.code || '',
-                        name: values.name || '',
-                        address: values.address || '',
-                        contact: values.contact || '',
-                        phone: values.phone || '',
-                        status: values.status || '1',
-                        createTime: formatDateTime(new Date().toISOString())
-                    };
-                    setDataSource((prev) => [...prev, newStore]);
-                    setTotal((prev) => prev + 1);
-                    message.warning('后端新增接口不可用，已切换为 mock 新增');
-                } else {
-                    setDataSource((prev) => prev.map(item =>
-                        item.id === currentStoreInfo.id
-                            ? { ...item, ...values }
-                            : item
-                    ));
-                    message.warning('后端编辑接口不可用，已切换为 mock 编辑');
-                }
-                setIsAddModalOpen(false);
-                setCurrentStoreInfo({});
-                return;
-            }
             message.error('操作失败: ' + errorMsg);
         } finally {
             setLoading(false);

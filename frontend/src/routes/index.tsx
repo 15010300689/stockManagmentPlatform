@@ -10,6 +10,7 @@ import RoleManagement from '../pages/RoleManagement';
 import UserManagement from '../pages/UserManagement';
 import StoreManagement from '../pages/NStoreManagement';
 import PositionManagement from '../pages/PositionManagement';
+import InventoryLogs from '../pages/InventoryLogs';
 import UnitManagement from '../pages/UnitManagement';
 import CurrencyManagement from '../pages/CurrencyManagement';
 import TransportManagement from '../pages/TransportManagement';
@@ -32,6 +33,7 @@ function AppRoutes(): JSX.Element {
                     <Route path="/user" element={<UserManagement />} />
                     <Route path="/storeManagement" element={<StoreManagement />} />
                     <Route path="/positionManagement" element={<PositionManagement />} />
+                    <Route path="/inventoryLogs" element={<InventoryLogs />} />
                     <Route path="/unitManagement" element={<UnitManagement />} />
                     <Route path="/currencyManagement" element={<CurrencyManagement />} />
                     <Route path="/transportManagement" element={<TransportManagement />} />

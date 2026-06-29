@@ -23,6 +23,10 @@ export const menuItems: MenuProps['items'] = [
         label: '🗺️ 仓位管理'
     },
     {
+        key: '/inventoryLogs',
+        label: '📋 库存流水'
+    },
+    {
         key: '/unitManagement',
         label: '🧪 计量单位管理'
     },

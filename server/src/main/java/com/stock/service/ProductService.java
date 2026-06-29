@@ -120,7 +120,12 @@ public class ProductService {
         if (productMapper.findById(id) == null) {
             return false;
         }
-        inventoryMapper.deleteLogsByProductId(id);
+        if (inventoryMapper.countPositiveInventoryByProductId(id) > 0) {
+            throw new IllegalArgumentException("该商品仍存在库存记录，请先完成出库或库存调整后再删除");
+        }
+        if (inventoryMapper.countLogsByProductId(id) > 0) {
+            throw new IllegalArgumentException("该商品存在库存流水记录，为保证操作可追溯，不允许物理删除，可改为下架/停用");
+        }
         inventoryMapper.deleteInventoryByProductId(id);
         return productMapper.deleteById(id) > 0;
     }

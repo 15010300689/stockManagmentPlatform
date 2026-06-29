@@ -5,7 +5,7 @@ import type { PositionItem, StoreItem } from '../../types/inventory';
 
 interface PositionFormValues {
     warehouseId: number;
-    parentId: number;
+    parentId?: number;
     code: string;
     type: string;
     maxCapacity: number;
@@ -13,7 +13,8 @@ interface PositionFormValues {
     status: boolean;
 }
 
-interface PositionSubmitPayload extends Omit<PositionFormValues, 'status'> {
+interface PositionSubmitPayload extends Omit<PositionFormValues, 'status' | 'parentId'> {
+    parentId?: number | null;
     status: '0' | '1';
 }
 
@@ -104,6 +105,7 @@ function AddPositionModal(props: AddPositionModalProps): JSX.Element {
             const values = await form.validateFields();
             const submitData = {
                 ...values,
+                parentId: values.parentId ?? null,
                 status: (values.status ? '1' : '0') as '0' | '1'
             };
             props.onSubmit?.(submitData, mode);
@@ -160,12 +162,12 @@ function AddPositionModal(props: AddPositionModalProps): JSX.Element {
                 <Form.Item
                     label="上级层级"
                     name="parentId"
-                    rules={[{ required: true, message: '请选择上级层级' }]}
                 >
                     <TreeSelect
-                        placeholder="请选择上级层级"
+                        placeholder="不选则作为仓库下的根级库区"
                         treeData={getFilteredTree()}
                         disabled={!selectedWarehouse}
+                        allowClear
                         treeDefaultExpandAll
                         showSearch
                         treeNodeFilterProp="title"
@@ -189,6 +191,7 @@ function AddPositionModal(props: AddPositionModalProps): JSX.Element {
                 <Form.Item
                     label="类型"
                     name="type"
+                    rules={[{ required: true, message: '请选择类型' }]}
                 >
                     <Select
                         placeholder="请选择类型"

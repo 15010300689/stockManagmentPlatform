@@ -230,6 +230,9 @@ public class InventoryService {
             if (Objects.equals(targetParentId, id)) {
                 return Result.error("上级层级不能是自己");
             }
+            if (isDescendantOf(targetParentId, id)) {
+                return Result.error("上级层级不能选择当前仓位的下级层级");
+            }
             Position parent = positionMapper.findById(targetParentId);
             if (parent == null) {
                 return Result.error("上级层级不存在");
@@ -289,6 +292,22 @@ public class InventoryService {
         } catch (Exception e) {
             return Result.error("删除失败，仓位已被库存数据引用");
         }
+    }
+
+    private boolean isDescendantOf(Integer possibleDescendantId, Integer ancestorId) {
+        Integer cursor = possibleDescendantId;
+        Set<Integer> visited = new HashSet<>();
+        while (cursor != null) {
+            if (Objects.equals(cursor, ancestorId)) {
+                return true;
+            }
+            if (!visited.add(cursor)) {
+                return true;
+            }
+            Position current = positionMapper.findById(cursor);
+            cursor = current == null ? null : current.getParentId();
+        }
+        return false;
     }
 
     /**
@@ -588,6 +607,20 @@ public class InventoryService {
         return position != null && warehouseId.equals(position.getWarehouseId());
     }
 
+    private void validatePositionCapacity(Integer positionId, int incomingAmount) {
+        if (positionId == null || incomingAmount <= 0) {
+            return;
+        }
+        Position position = positionMapper.findById(positionId);
+        if (position == null || position.getMaxCapacity() == null || position.getMaxCapacity() <= 0) {
+            return;
+        }
+        int used = inventoryMapper.sumQuantityByPositionId(positionId);
+        if (used + incomingAmount > position.getMaxCapacity()) {
+            throw new IllegalArgumentException("入库失败，超过仓位最大容量");
+        }
+    }
+
     /**
      * 库存调整（入库/出库），事务控制保证一致性
      */
@@ -605,6 +638,7 @@ public class InventoryService {
         Inventory inv = inventoryMapper.findOne(productId, warehouseId, positionId);
 
         if ("in".equals(type)) {
+            validatePositionCapacity(positionId, amount);
             if (inv == null) {
                 Inventory newInv = new Inventory();
                 newInv.setProductId(productId);

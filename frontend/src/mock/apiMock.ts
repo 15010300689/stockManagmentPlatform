@@ -58,20 +58,21 @@ const permissionDb: PermissionRecord[] = [
     { id: 6, permissionName: '低库存预警', permissionCode: 'product:lowstock', method: 'GET', path: '/api/low-stock' },
     { id: 7, permissionName: '查看仓库', permissionCode: 'inventory:stores:view', method: 'GET', path: '/api/stores' },
     { id: 8, permissionName: '查看仓位', permissionCode: 'inventory:positions:view', method: 'GET', path: '/api/positions' },
+    { id: 11, permissionName: '库存流水查询', permissionCode: 'inventory:logs:view', method: 'GET', path: '/api/inventory/logs' },
     { id: 9, permissionName: '菜单查看', permissionCode: 'admin:menu:view', method: 'GET', path: '/api/admin/menus' },
     { id: 10, permissionName: '角色查看', permissionCode: 'admin:role:view', method: 'GET', path: '/api/admin/roles' },
 ];
 
 const roleMenuMap = new Map<number, number[]>([
-    [1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]],
-    [2, [5, 6, 7]],
-    [9, [5]],
+    [1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]],
+    [2, [5, 6, 7, 11]],
+    [9, [5, 11]],
 ]);
 
 const rolePermissionMap = new Map<number, number[]>([
     [1, permissionDb.map((p) => p.id)],
-    [2, [0, 1, 2, 3, 4, 5, 6, 7, 8]],
-    [9, [0, 4, 5, 7, 8]],
+    [2, [0, 1, 2, 3, 4, 5, 6, 7, 8, 11]],
+    [9, [0, 4, 5, 7, 8, 11]],
 ]);
 
 let menuDb: MenuRecord[] = [
@@ -82,9 +83,10 @@ let menuDb: MenuRecord[] = [
     { id: 5, parentId: 0, name: '商品管理', path: '/product', requiredPermissionCode: 'product:view', icon: '📦', sortNo: 2, visible: 1, status: 1 },
     { id: 6, parentId: 0, name: '仓库管理', path: '/storeManagement', requiredPermissionCode: 'inventory:stores:view', icon: '🏠', sortNo: 3, visible: 1, status: 1 },
     { id: 7, parentId: 0, name: '仓位管理', path: '/positionManagement', requiredPermissionCode: 'inventory:positions:view', icon: '🗺️', sortNo: 4, visible: 1, status: 1 },
-    { id: 8, parentId: 0, name: '计量单位管理', path: '/unitManagement', requiredPermissionCode: 'admin:menu:view', icon: '🧪', sortNo: 5, visible: 1, status: 1 },
-    { id: 9, parentId: 0, name: '货币管理', path: '/currencyManagement', requiredPermissionCode: 'admin:menu:view', icon: '🪙', sortNo: 6, visible: 1, status: 1 },
-    { id: 10, parentId: 0, name: '运输途径管理', path: '/transportManagement', requiredPermissionCode: 'admin:menu:view', icon: '✈️', sortNo: 7, visible: 1, status: 1 },
+    { id: 11, parentId: 0, name: '库存流水', path: '/inventoryLogs', requiredPermissionCode: 'inventory:logs:view', icon: '📋', sortNo: 5, visible: 1, status: 1 },
+    { id: 8, parentId: 0, name: '计量单位管理', path: '/unitManagement', requiredPermissionCode: 'admin:menu:view', icon: '🧪', sortNo: 6, visible: 1, status: 1 },
+    { id: 9, parentId: 0, name: '货币管理', path: '/currencyManagement', requiredPermissionCode: 'admin:menu:view', icon: '🪙', sortNo: 7, visible: 1, status: 1 },
+    { id: 10, parentId: 0, name: '运输途径管理', path: '/transportManagement', requiredPermissionCode: 'admin:menu:view', icon: '✈️', sortNo: 8, visible: 1, status: 1 },
 ];
 
 const permissionCodeById = new Map(permissionDb.map((p) => [p.id, p.permissionCode]));

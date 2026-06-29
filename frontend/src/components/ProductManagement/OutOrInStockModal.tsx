@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Button, InputNumber, Form, Space, message, Select, TreeSelect, Input } from 'antd';
+import { Modal, Button, InputNumber, Form, Space, message, Select, TreeSelect, Input, Alert, Progress, Tag } from 'antd';
 import { requestWithAuth } from '../../api/client';
 import type { ProductItem, StoreItem, PositionItem } from '../../types/inventory';
 import { buildPositionTree } from '../../utils/positionTree';
+import type { PositionInventoryOverview } from '../../types/inventoryOverview';
 
 const API_BASE = '/api';
 
@@ -30,6 +31,14 @@ interface PositionStockRow {
     quantity: number;
 }
 
+interface CapacityInfo {
+    usedQuantity: number;
+    maxCapacity: number;
+    remainingQuantity?: number | null;
+    utilizationPercent?: number | null;
+    unit?: string;
+}
+
 function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
     const [stockForm] = Form.useForm<StockFormValues>();
     const {
@@ -45,6 +54,7 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
     const warehouseId = Form.useWatch('warehouseId', stockForm);
     const positionId = Form.useWatch('positionId', stockForm);
     const [locationStock, setLocationStock] = useState<number | null>(null);
+    const [capacityInfo, setCapacityInfo] = useState<CapacityInfo | null>(null);
 
     const warehouseOptions = useMemo(
         () =>
@@ -67,6 +77,7 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
         }
         stockForm.resetFields();
         setLocationStock(null);
+        setCapacityInfo(null);
     }, [currentStockType, stockModalVisible, stockForm]);
 
     useEffect(() => {
@@ -106,6 +117,36 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
         void loadLocationStock();
     }, [currentStockType, currentProduct?.id, warehouseId, positionId]);
 
+    useEffect(() => {
+        const loadCapacityInfo = async () => {
+            if (currentStockType !== 'in' || !positionId) {
+                setCapacityInfo(null);
+                return;
+            }
+            try {
+                const response = await requestWithAuth(
+                    `${API_BASE}/positions/${encodeURIComponent(String(positionId))}/inventory/overview`
+                );
+                if (!response.ok) {
+                    setCapacityInfo(null);
+                    return;
+                }
+                const data = (await response.json()) as PositionInventoryOverview;
+                const maxCapacity = Number(data.maxCapacity ?? 0);
+                setCapacityInfo({
+                    usedQuantity: Number(data.usedQuantity ?? 0),
+                    maxCapacity,
+                    remainingQuantity: data.remainingQuantity,
+                    utilizationPercent: data.utilizationPercent,
+                    unit: data.unit || '件',
+                });
+            } catch {
+                setCapacityInfo(null);
+            }
+        };
+        void loadCapacityInfo();
+    }, [currentStockType, positionId]);
+
     const handleStockSubmit = async (values: StockFormValues) => {
         if (!currentProduct) return;
         const endpoint = currentStockType === 'in' ? 'stock-in' : 'stock-out';
@@ -140,6 +181,17 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
             : currentStockType === 'out' && currentProduct
                 ? currentProduct.quantity
                 : undefined;
+    const maxIn =
+        currentStockType === 'in' &&
+        capacityInfo?.maxCapacity &&
+        capacityInfo.maxCapacity > 0 &&
+        capacityInfo.remainingQuantity != null
+            ? Math.max(Number(capacityInfo.remainingQuantity), 0)
+            : undefined;
+
+    const selectedPositionLabel = positionId
+        ? positionList.find((item) => Number(item.id) === Number(positionId))
+        : null;
 
     return (
         <Modal
@@ -158,6 +210,12 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
                     {currentStockType === 'out' && locationStock != null && warehouseId && (
                         <div>
                             <strong>当前库位可出:</strong> {locationStock}
+                        </div>
+                    )}
+                    {currentStockType === 'in' && positionId && (
+                        <div style={{ marginTop: 8 }}>
+                            <strong>目标仓位:</strong> {selectedPositionLabel?.code || positionId}
+                            {selectedPositionLabel?.name ? ` - ${selectedPositionLabel.name}` : ''}
                         </div>
                     )}
                 </div>
@@ -192,6 +250,31 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
                         fieldNames={{ label: 'title', value: 'value', children: 'children' }}
                     />
                 </Form.Item>
+                {currentStockType === 'in' && capacityInfo?.maxCapacity ? (
+                    <Alert
+                        type={(capacityInfo.utilizationPercent ?? 0) >= 90 ? 'warning' : 'info'}
+                        showIcon
+                        style={{ marginBottom: 16 }}
+                        message={
+                            <Space wrap>
+                                <span>仓位容量</span>
+                                <Tag color="processing">已占 {capacityInfo.usedQuantity} {capacityInfo.unit || '件'}</Tag>
+                                <Tag color="default">上限 {capacityInfo.maxCapacity} {capacityInfo.unit || '件'}</Tag>
+                                <Tag color={(capacityInfo.remainingQuantity ?? 0) <= 0 ? 'error' : 'success'}>
+                                    剩余 {capacityInfo.remainingQuantity ?? 0} {capacityInfo.unit || '件'}
+                                </Tag>
+                            </Space>
+                        }
+                        description={
+                            <Progress
+                                percent={capacityInfo.utilizationPercent ?? 0}
+                                size="small"
+                                status={(capacityInfo.utilizationPercent ?? 0) >= 100 ? 'exception' : 'active'}
+                                style={{ maxWidth: 360 }}
+                            />
+                        }
+                    />
+                ) : null}
                 <Form.Item
                     label={currentStockType === 'in' ? '入库数量' : '出库数量'}
                     name="amount"
@@ -203,6 +286,15 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
                         { type: 'number', min: 1, message: '数量必须大于0' },
                         {
                             validator: (_, value: number) => {
+                                if (
+                                    currentStockType === 'in' &&
+                                    maxIn != null &&
+                                    value > maxIn
+                                ) {
+                                    return Promise.reject(
+                                        new Error(`入库数量不能超过仓位剩余容量（${maxIn}）`)
+                                    );
+                                }
                                 if (
                                     currentStockType === 'out' &&
                                     maxOut != null &&
@@ -220,7 +312,7 @@ function OutOrInStockModal(props: OutOrInStockModalProps): JSX.Element {
                     <InputNumber
                         style={{ width: '100%' }}
                         min={1}
-                        max={maxOut}
+                        max={currentStockType === 'in' ? maxIn : maxOut}
                         placeholder={`请输入${currentStockType === 'in' ? '入库' : '出库'}数量`}
                     />
                 </Form.Item>

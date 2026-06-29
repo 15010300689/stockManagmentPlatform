@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Button, Table, InputNumber, Space, Tag, message, Alert, Typography, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { requestWithAuth } from '../../api/client';
-import { shouldFallbackToMockByResponse } from '../../mock/apiMock';
+import { isMockEnabled, shouldFallbackToMockByResponse } from '../../mock/apiMock';
 
 import { mockLowStockProducts } from '../../mock/productManagement';
 import type { ProductItem } from '../../types/inventory';
@@ -69,7 +69,7 @@ function LowStockModal({ visible, onClose, onOpenStockIn, onOpenInventory }: Low
                 setProducts(normalizeRows(data));
                 return;
             }
-            if (shouldFallbackToMockByResponse(`${API_BASE}/low-stock?threshold=${t}`, response)) {
+            if (isMockEnabled() && shouldFallbackToMockByResponse(`${API_BASE}/low-stock?threshold=${t}`, response)) {
                 setProducts(filterMockLowStock(t));
                 setFromMock(true);
                 message.warning('后端不可用，已使用本地 mock 数据演示');
@@ -78,9 +78,15 @@ function LowStockModal({ visible, onClose, onOpenStockIn, onOpenInventory }: Low
             setProducts([]);
             message.error((data as { message?: string })?.message || `查询失败（${response.status}）`);
         } catch (error) {
-            setProducts(filterMockLowStock(t));
-            setFromMock(true);
-            message.warning('请求异常，已使用本地 mock 数据演示');
+            if (isMockEnabled()) {
+                setProducts(filterMockLowStock(t));
+                setFromMock(true);
+                message.warning('请求异常，已使用本地 mock 数据演示');
+                console.warn(error);
+                return;
+            }
+            setProducts([]);
+            message.error('低库存查询失败: ' + (error as Error).message);
             console.warn(error);
         } finally {
             setLoading(false);

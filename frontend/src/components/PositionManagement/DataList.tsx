@@ -158,7 +158,7 @@ function DataList(props: DataListProps): JSX.Element {
                                                         style={{ margin: 0 }}
                                                     >
                                                         已占 {occ.usedQuantity}/{occ.maxCapacity} {unit}
-                                                        （剩 {occ.remainingQuantity ?? 0}）
+                                                        （剩 {occ.remainingQuantity ?? 0}，{pct}%）
                                                     </Tag>
                                                 );
                                             }

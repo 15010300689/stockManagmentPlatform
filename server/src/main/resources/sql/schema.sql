@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS position (
   status       CHAR(1) NOT NULL DEFAULT '1',
   max_capacity INT NOT NULL DEFAULT 0,
   unit         VARCHAR(32),
+  UNIQUE KEY uk_position_wh_code (warehouse_id, code),
   INDEX idx_position_wh (warehouse_id),
   INDEX idx_position_parent (parent_id),
   CONSTRAINT fk_position_wh FOREIGN KEY (warehouse_id) REFERENCES warehouse(id)
@@ -127,8 +128,10 @@ CREATE TABLE IF NOT EXISTS inventory (
   product_id   BIGINT NOT NULL,
   warehouse_id INT NOT NULL,
   position_id  INT NULL,
+  position_key  INT GENERATED ALWAYS AS (IFNULL(position_id, 0)) STORED,
   quantity     INT NOT NULL DEFAULT 0,
   update_time  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_inv_product_wh_pos (product_id, warehouse_id, position_key),
   INDEX idx_inv_product_wh_pos (product_id, warehouse_id, position_id),
   CONSTRAINT fk_inv_product FOREIGN KEY (product_id) REFERENCES product(id),
   CONSTRAINT fk_inv_wh FOREIGN KEY (warehouse_id) REFERENCES warehouse(id)

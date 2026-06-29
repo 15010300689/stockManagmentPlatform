@@ -6,8 +6,6 @@ import DataList from '../components/PositionManagement/DataList';
 import AddPositionModal from '../components/PositionManagement/AddPositionModal';
 import LocationInventoryDrawer from '../components/inventory/LocationInventoryDrawer';
 import { requestWithAuth } from '../api/client';
-import { positionList } from '../mock/positionList';
-import { storeList } from '../mock/storeList';
 import type { PositionItem, StoreItem } from '../types/inventory';
 import type { PositionOccupancy } from '../types/inventoryOverview';
 import {
@@ -43,7 +41,7 @@ interface DataListNode {
 
 interface PositionSubmitValues {
     warehouseId: number;
-    parentId: number;
+    parentId?: number | null;
     code: string;
     type: string;
     maxCapacity: number;
@@ -52,9 +50,6 @@ interface PositionSubmitValues {
 }
 
 const API_BASE = '/api';
-const fallbackPositions = [...positionList];
-const fallbackStores = [...storeList];
-
 interface PositionResponseItem {
     id?: number | string;
     warehouseId?: number | string;
@@ -89,10 +84,6 @@ interface StoreResponseItem {
     status?: string | number;
     createTime?: string;
     create_time?: string;
-}
-
-function shouldFallbackByStatus(status: number): boolean {
-    return status === 404 || status === 405 || status >= 500;
 }
 
 async function getErrorMessage(response: Response): Promise<string> {
@@ -167,12 +158,12 @@ function PositionManagement(): JSX.Element {
     const [positionInventoryOpen, setPositionInventoryOpen] = useState(false);
     const [inventoryPosition, setInventoryPosition] = useState<DataListNode | null>(null);
     const [currentPositionInfo, setCurrentPositionInfo] = useState<Partial<TreeNode>>({});
-    const [dataSource, setDataSource] = useState<PositionItem[]>(fallbackPositions);
-    const [warehouseList, setWarehouseList] = useState<StoreItem[]>(fallbackStores);
+    const [dataSource, setDataSource] = useState<PositionItem[]>([]);
+    const [warehouseList, setWarehouseList] = useState<StoreItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [pageNo, setPageNo] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [total, setTotal] = useState(fallbackPositions.length);
+    const [total, setTotal] = useState(0);
     const [occupancyMap, setOccupancyMap] = useState<Record<string, PositionOccupancy>>({});
 
     const loadPositionOccupancy = useCallback(async (whId: string) => {
@@ -289,13 +280,13 @@ function PositionManagement(): JSX.Element {
         try {
             await Promise.all([requestStoreData(), requestPositionData()]);
         } catch (error) {
-            setWarehouseList(fallbackStores);
-            setDataSource(fallbackPositions);
-            setTotal(fallbackPositions.length);
+            setWarehouseList([]);
+            setDataSource([]);
+            setTotal(0);
             setPageNo(1);
             setPageSize(10);
-            message.warning('后端服务异常，仓位管理已切换为 mock 数据展示');
-            console.warn('load positions failed, fallback to mock data:', error);
+            message.error('加载仓位失败: ' + (error as Error).message);
+            console.warn('load positions failed:', error);
         } finally {
             setLoading(false);
         }
@@ -367,21 +358,12 @@ function PositionManagement(): JSX.Element {
                 method: 'DELETE'
             });
             if (!response.ok) {
-                if (shouldFallbackByStatus(response.status)) {
-                    throw new Error(`fallback:${response.status}`);
-                }
                 throw new Error(await getErrorMessage(response));
             }
             message.success('删除仓位成功');
             await requestPositionData();
         } catch (error) {
             const errorMsg = (error as Error).message || '';
-            if (errorMsg.startsWith('fallback:')) {
-                setDataSource((prev) => prev.filter((item) => item.id !== record.id));
-                setTotal((prev) => Math.max(prev - 1, 0));
-                message.warning('后端删除接口不可用，已切换为 mock 删除');
-                return;
-            }
             message.error('删除失败: ' + errorMsg);
         } finally {
             setLoading(false);
@@ -397,9 +379,6 @@ function PositionManagement(): JSX.Element {
                     body: JSON.stringify(values)
                 });
                 if (!response.ok) {
-                    if (shouldFallbackByStatus(response.status)) {
-                        throw new Error(`fallback:${response.status}`);
-                    }
                     throw new Error(await getErrorMessage(response));
                 }
                 message.success('新增仓位成功');
@@ -410,9 +389,6 @@ function PositionManagement(): JSX.Element {
                     body: JSON.stringify(values)
                 });
                 if (!response.ok) {
-                    if (shouldFallbackByStatus(response.status)) {
-                        throw new Error(`fallback:${response.status}`);
-                    }
                     throw new Error(await getErrorMessage(response));
                 }
                 message.success('编辑仓位成功');
@@ -422,29 +398,6 @@ function PositionManagement(): JSX.Element {
             setCurrentPositionInfo({});
         } catch (error) {
             const errorMsg = (error as Error).message || '';
-            if (errorMsg.startsWith('fallback:')) {
-                if (submitMode === 'add') {
-                    const newPosition: PositionItem = {
-                        id: Date.now(),
-                        ...values,
-                        name: values.code,
-                        createTime: new Date().toISOString()
-                    };
-                    setDataSource((prev) => [...prev, newPosition]);
-                    setTotal((prev) => prev + 1);
-                    message.warning('后端新增接口不可用，已切换为 mock 新增');
-                } else {
-                    setDataSource((prev) => prev.map(item =>
-                        item.id === currentPositionInfo.id
-                            ? { ...item, ...values, name: values.code }
-                            : item
-                    ));
-                    message.warning('后端编辑接口不可用，已切换为 mock 编辑');
-                }
-                setIsAddModalOpen(false);
-                setCurrentPositionInfo({});
-                return;
-            }
             message.error('操作失败: ' + errorMsg);
         } finally {
             setLoading(false);

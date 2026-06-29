@@ -21,12 +21,6 @@ import LowStockModal     from '../components/ProductManagement/LowStockModal';
 import AddProductModal from '../components/ProductManagement/AddProductModal';
 import OutOrInStockModal from '../components/ProductManagement/OutOrInStockModal';
 import InventoryDrawer from '../components/ProductManagement/InventoryDrawer';
-import {
-    mockProducts,
-    mockStatics
-} from '../mock/productManagement';
-import { storeList } from '../mock/storeList';
-import { positionList } from '../mock/positionList';
 
 
 const API_BASE = '/api';
@@ -78,18 +72,18 @@ interface PositionNodeItem {
 }
 
 function ProductManagement() {
-    const [products, setProducts] = useState<ProductItem[]>(mockProducts as ProductItem[]);
+    const [products, setProducts] = useState<ProductItem[]>([]);
     const [loading, setLoading] = useState(false);
-    const [stats, setStats] = useState<Stats>((mockStatics as Stats) || { productCount: 0, totalValue: 0, categories: [] });
+    const [stats, setStats] = useState<Stats>({ productCount: 0, totalValue: 0, categories: [] });
     /** 输入框中的关键字（仅展示，不触发列表过滤） */
     const [searchInput, setSearchInput] = useState('');
     /** 点击「搜索」后生效的关键字，用于请求接口；刷新/增删改后仍按该条件拉列表 */
     const [appliedSearch, setAppliedSearch] = useState('');
-    const [warehouseOptions, setWarehouseOptions] = useState<StoreItem[]>(storeList as unknown as StoreItem[]);
-    const [positionOptions, setPositionOptions] = useState<PositionNodeItem[]>(positionList as unknown as PositionNodeItem[]);
+    const [warehouseOptions, setWarehouseOptions] = useState<StoreItem[]>([]);
+    const [positionOptions, setPositionOptions] = useState<PositionNodeItem[]>([]);
     const [pageNo, setPageNo] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [total, setTotal] = useState((mockProducts as ProductItem[]).length);
+    const [total, setTotal] = useState(0);
 
     // 模态框状态
     const [productModalVisible, setProductModalVisible] = useState(false);
@@ -222,9 +216,9 @@ function ProductManagement() {
                 }
             }
         } catch (error) {
-            console.warn('加载仓库/仓位失败，已回退 mock 数据', error);
-            setWarehouseOptions(storeList as unknown as StoreItem[]);
-            setPositionOptions(positionList as unknown as PositionNodeItem[]);
+            console.warn('加载仓库/仓位失败:', error);
+            setWarehouseOptions([]);
+            setPositionOptions([]);
         }
     };
 
@@ -411,8 +405,8 @@ function ProductManagement() {
                             title="确定要删除这个商品吗？"
                             description={
                                 (record.quantity ?? 0) > 0
-                                    ? '当前商品仍有库存数量，确认后将自动清除各仓库库存明细、库存流水并删除商品主数据，操作不可恢复。'
-                                    : '删除后不可恢复。'
+                                    ? '当前商品仍有库存数量，系统将阻止删除。请先完成出库或库存调整后再操作。'
+                                    : '若该商品存在库存流水，为保证操作可追溯，系统将阻止物理删除。'
                             }
                             onConfirm={() => handleDelete(record.id)}
                             okText="确定"
