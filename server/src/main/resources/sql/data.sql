@@ -3,18 +3,31 @@
 -- ========================================
 USE stock;
 
--- 兼容增量升级：补齐菜单权限字段
-ALTER TABLE sys_menu
-  ADD COLUMN IF NOT EXISTS required_permission_code VARCHAR(100) DEFAULT NULL COMMENT '访问该菜单所需权限码，为空表示目录或公开菜单';
-
--- 兼容增量升级：补齐仓位/库存唯一约束，避免重复仓位编码和重复库存行
-ALTER TABLE inventory
-  ADD COLUMN IF NOT EXISTS position_key INT GENERATED ALWAYS AS (IFNULL(position_id, 0)) STORED;
-
-DROP PROCEDURE IF EXISTS add_stock_unique_indexes;
+-- 兼容增量升级：补齐字段和唯一约束，兼容不支持 ADD COLUMN IF NOT EXISTS 的 MySQL 版本
+DROP PROCEDURE IF EXISTS upgrade_stock_schema;
 DELIMITER //
-CREATE PROCEDURE add_stock_unique_indexes()
+CREATE PROCEDURE upgrade_stock_schema()
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'sys_menu'
+      AND column_name = 'required_permission_code'
+  ) THEN
+    ALTER TABLE sys_menu
+      ADD COLUMN required_permission_code VARCHAR(100) DEFAULT NULL COMMENT '访问该菜单所需权限码，为空表示目录或公开菜单';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'inventory'
+      AND column_name = 'position_key'
+  ) THEN
+    ALTER TABLE inventory
+      ADD COLUMN position_key INT GENERATED ALWAYS AS (IFNULL(position_id, 0)) STORED;
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.statistics
     WHERE table_schema = DATABASE()
@@ -34,8 +47,8 @@ BEGIN
   END IF;
 END//
 DELIMITER ;
-CALL add_stock_unique_indexes();
-DROP PROCEDURE IF EXISTS add_stock_unique_indexes;
+CALL upgrade_stock_schema();
+DROP PROCEDURE IF EXISTS upgrade_stock_schema;
 
 -- 默认角色
 INSERT IGNORE INTO sys_role (id, role_name, role_code, description) VALUES
@@ -87,6 +100,12 @@ SELECT 2 AS role_id, id AS menu_id FROM sys_menu;
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 SELECT 3 AS role_id, id AS menu_id FROM sys_menu;
+
+-- 库存流水菜单显式授权给默认角色，兼容已有数据库升级场景
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+  (1, 11),
+  (2, 11),
+  (3, 11);
 
 -- 接口权限点（阶段B：按钮级权限 + 接口鉴权）
 INSERT IGNORE INTO sys_permission (id, permission_name, permission_code, path, method, description) VALUES
